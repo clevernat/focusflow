@@ -4,6 +4,7 @@ import { Dashboard } from './components/Dashboard';
 import { Analytics } from './components/Analytics';
 import AchievementsPanel from './components/AchievementsPanel';
 import RemindersPanel from './components/RemindersPanel';
+import { AlertModal, ConfirmModal } from './components/Modal';
 import { Subject, Session, Tab, TimerState, TimerActions, Task, TimerMode } from './types';
 import { format } from 'date-fns';
 import { useAuth } from './contexts/AuthContext';
@@ -13,6 +14,7 @@ import { useGamification } from './hooks/useGamification';
 import AchievementNotification from './components/AchievementNotification';
 import type { Achievement } from './lib/supabase';
 import { useReminderChecker } from './hooks/useReminderChecker';
+import { useModal } from './hooks/useModal';
 
 const App: React.FC = () => {
   const { user, profile, signOut } = useAuth();
@@ -42,6 +44,16 @@ const App: React.FC = () => {
 
   // Background reminder checker - runs on all pages
   useReminderChecker(user?.id);
+
+  // Modal management
+  const {
+    alertState,
+    showAlert,
+    closeAlert,
+    confirmState,
+    showConfirm,
+    closeConfirm
+  } = useModal();
 
   const [activeTab, setActiveTab] = useState<Tab>('study');
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
@@ -161,7 +173,7 @@ const App: React.FC = () => {
 
     if (!('Notification' in window)) {
       console.error('❌ Notifications not supported');
-      alert('Notifications are not supported in this browser.');
+      showAlert('Notifications are not supported in this browser.', 'Not Supported', 'error');
       return;
     }
 
@@ -182,7 +194,7 @@ const App: React.FC = () => {
         // Add event listeners to see if notification is working
         notification.onclick = () => {
           console.log('✅ Notification was clicked!');
-          alert('You clicked the notification!');
+          showAlert('You clicked the notification!', 'Notification Clicked', 'success');
           notification.close();
         };
 
@@ -195,10 +207,10 @@ const App: React.FC = () => {
         };
 
         console.log('✅ Notification created:', notification);
-        alert('✅ Notification sent! It should appear on your screen now.\n\nIf you don\'t see it:\n1. Check your system notification settings\n2. Turn off Do Not Disturb mode\n3. Check your notification center/tray');
+        showAlert('Notification sent! It should appear on your screen now.\n\nIf you don\'t see it:\n1. Check your system notification settings\n2. Turn off Do Not Disturb mode\n3. Check your notification center/tray', 'Notification Sent', 'success');
       } else if (Notification.permission === 'denied') {
         console.error('❌ Permission denied');
-        alert('❌ Notifications are blocked. Please enable them in your browser settings:\n\n1. Click the lock icon (🔒) in the address bar\n2. Find "Notifications"\n3. Change to "Allow"\n4. Refresh the page');
+        showAlert('Notifications are blocked. Please enable them in your browser settings:\n\n1. Click the lock icon (🔒) in the address bar\n2. Find "Notifications"\n3. Change to "Allow"\n4. Refresh the page', 'Permission Denied', 'error');
       } else {
         console.log('⚠️ Permission not set, requesting...');
         // Request permission
@@ -218,7 +230,7 @@ const App: React.FC = () => {
 
           notification.onclick = () => {
             console.log('✅ Notification was clicked!');
-            alert('You clicked the notification!');
+            showAlert('You clicked the notification!', 'Notification Clicked', 'success');
             notification.close();
           };
 
@@ -231,18 +243,18 @@ const App: React.FC = () => {
           };
 
           console.log('✅ Notification created:', notification);
-          alert('✅ Permission granted! Notification sent!\n\nIt should appear on your screen now.\n\nIf you don\'t see it, check:\n1. System notification settings\n2. Do Not Disturb mode\n3. Notification center/tray');
+          showAlert('Permission granted! Notification sent!\n\nIt should appear on your screen now.\n\nIf you don\'t see it, check:\n1. System notification settings\n2. Do Not Disturb mode\n3. Notification center/tray', 'Success', 'success');
         } else if (permission === 'denied') {
           console.error('❌ User denied permission');
-          alert('❌ You denied notification permission. You can enable it later in browser settings.');
+          showAlert('You denied notification permission. You can enable it later in browser settings.', 'Permission Denied', 'error');
         } else {
           console.warn('⚠️ Permission result was:', permission);
-          alert('⚠️ Notification permission was not granted. Status: ' + permission);
+          showAlert('Notification permission was not granted. Status: ' + permission, 'Permission Not Granted', 'warning');
         }
       }
     } catch (error) {
       console.error('❌ Notification error:', error);
-      alert('❌ Failed to send notification. Error: ' + (error as Error).message + '\n\nPlease check your browser settings and console for details.');
+      showAlert('Failed to send notification. Error: ' + (error as Error).message + '\n\nPlease check your browser settings and console for details.', 'Notification Error', 'error');
     }
   };
 
@@ -359,7 +371,7 @@ const App: React.FC = () => {
       if (error) throw error;
     } catch (error) {
       console.error('Error updating daily goal:', error);
-      alert('Failed to update daily goal. Please try again.');
+      showAlert('Failed to update daily goal. Please try again.', 'Error', 'error');
     }
   };
 
@@ -379,7 +391,7 @@ const App: React.FC = () => {
       }
     } catch (error) {
       console.error('Error saving session:', error);
-      alert('Failed to save session. Please try again.');
+      showAlert('Failed to save session. Please try again.', 'Error', 'error');
     }
   };
 
@@ -388,19 +400,26 @@ const App: React.FC = () => {
       await updateSession(id, updatedData);
     } catch (error) {
       console.error('Error updating session:', error);
-      alert('Failed to update session. Please try again.');
+      showAlert('Failed to update session. Please try again.', 'Error', 'error');
     }
   };
 
   const handleDeleteSession = async (id: string) => {
-    if (window.confirm('Are you sure you want to delete this session record?')) {
-      try {
-        await deleteSession(id);
-      } catch (error) {
-        console.error('Error deleting session:', error);
-        alert('Failed to delete session. Please try again.');
-      }
-    }
+    showConfirm(
+      'Are you sure you want to delete this session record?',
+      async () => {
+        try {
+          await deleteSession(id);
+        } catch (error) {
+          console.error('Error deleting session:', error);
+          showAlert('Failed to delete session. Please try again.', 'Error', 'error');
+        }
+      },
+      'Delete Session',
+      'warning',
+      'Delete',
+      'Cancel'
+    );
   };
 
   const handleAddSubject = async (subjectData: Omit<Subject, 'id'>) => {
@@ -408,7 +427,7 @@ const App: React.FC = () => {
       await addSubject(subjectData);
     } catch (error) {
       console.error('Error adding subject:', error);
-      alert('Failed to add subject. Please try again.');
+      showAlert('Failed to add subject. Please try again.', 'Error', 'error');
     }
   };
 
@@ -417,7 +436,7 @@ const App: React.FC = () => {
       await updateSubject(id, updatedData);
     } catch (error) {
       console.error('Error updating subject:', error);
-      alert('Failed to update subject. Please try again.');
+      showAlert('Failed to update subject. Please try again.', 'Error', 'error');
     }
   };
 
@@ -428,27 +447,30 @@ const App: React.FC = () => {
     // Check if used
     const hasHistory = sessions.some(s => s.subjectId === id);
 
-    if (hasHistory) {
-      const confirmDelete = window.confirm(
-        `Warning: You have study sessions recorded for "${subjectName}".\n\nDeleting it will keep your session history, but they will show as "Unknown Subject".\n\nDo you want to proceed?`
-      );
-      if (!confirmDelete) return;
-    } else {
-      const confirmDelete = window.confirm(`Are you sure you want to delete "${subjectName}"?`);
-      if (!confirmDelete) return;
-    }
+    const message = hasHistory
+      ? `Warning: You have study sessions recorded for "${subjectName}".\n\nDeleting it will keep your session history, but they will show as "Unknown Subject".\n\nDo you want to proceed?`
+      : `Are you sure you want to delete "${subjectName}"?`;
 
-    try {
-      await deleteSubject(id);
+    showConfirm(
+      message,
+      async () => {
+        try {
+          await deleteSubject(id);
 
-      // If the timer was running on this subject, reset it safely
-      if (timerState.subjectId === id) {
-         timerActions.reset();
-      }
-    } catch (error) {
-      console.error('Error deleting subject:', error);
-      alert('Failed to delete subject. Please try again.');
-    }
+          // If the timer was running on this subject, reset it safely
+          if (timerState.subjectId === id) {
+            timerActions.reset();
+          }
+        } catch (error) {
+          console.error('Error deleting subject:', error);
+          showAlert('Failed to delete subject. Please try again.', 'Error', 'error');
+        }
+      },
+      'Delete Subject',
+      'warning',
+      'Delete',
+      'Cancel'
+    );
   };
 
   // Task Handlers
@@ -457,7 +479,7 @@ const App: React.FC = () => {
       await addTask(text);
     } catch (error) {
       console.error('Error adding task:', error);
-      alert('Failed to add task. Please try again.');
+      showAlert('Failed to add task. Please try again.', 'Error', 'error');
     }
   };
 
@@ -466,7 +488,7 @@ const App: React.FC = () => {
       await toggleTask(id);
     } catch (error) {
       console.error('Error toggling task:', error);
-      alert('Failed to update task. Please try again.');
+      showAlert('Failed to update task. Please try again.', 'Error', 'error');
     }
   };
 
@@ -475,7 +497,7 @@ const App: React.FC = () => {
       await deleteTask(id);
     } catch (error) {
       console.error('Error deleting task:', error);
-      alert('Failed to delete task. Please try again.');
+      showAlert('Failed to delete task. Please try again.', 'Error', 'error');
     }
   };
 
@@ -513,20 +535,27 @@ const App: React.FC = () => {
         
         // Basic validation
         if (!Array.isArray(data.subjects) || !Array.isArray(data.sessions)) {
-            alert('Invalid backup file format. Missing required data fields.');
+            showAlert('Invalid backup file format. Missing required data fields.', 'Invalid File', 'error');
             return;
         }
 
-        if (window.confirm('Warning: Importing this file will OVERWRITE your current data. This action cannot be undone.\n\nAre you sure you want to proceed?')) {
+        showConfirm(
+          'Warning: Importing this file will OVERWRITE your current data. This action cannot be undone.\n\nAre you sure you want to proceed?',
+          () => {
             setSubjects(data.subjects);
             setSessions(data.sessions);
             setTasks(data.tasks || []);
             if (data.dailyGoal) setDailyGoal(data.dailyGoal);
             setIsSettingsModalOpen(false);
-            alert('Data imported successfully!');
-        }
+            showAlert('Data imported successfully!', 'Import Complete', 'success');
+          },
+          'Import Data',
+          'warning',
+          'Import',
+          'Cancel'
+        );
       } catch (err) {
-        alert('Failed to parse backup file. Please ensure it is a valid JSON file from FocusFlow.');
+        showAlert('Failed to parse backup file. Please ensure it is a valid JSON file from FocusFlow.', 'Import Error', 'error');
         console.error(err);
       }
       // Reset input so the same file can be selected again if needed
@@ -817,6 +846,27 @@ const App: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Alert Modal */}
+      <AlertModal
+        isOpen={alertState.isOpen}
+        onClose={closeAlert}
+        title={alertState.title}
+        message={alertState.message}
+        type={alertState.type}
+      />
+
+      {/* Confirm Modal */}
+      <ConfirmModal
+        isOpen={confirmState.isOpen}
+        onClose={closeConfirm}
+        onConfirm={confirmState.onConfirm || (() => {})}
+        title={confirmState.title}
+        message={confirmState.message}
+        type={confirmState.type}
+        confirmText={confirmState.confirmText}
+        cancelText={confirmState.cancelText}
+      />
     </div>
   );
 };

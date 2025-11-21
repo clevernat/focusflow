@@ -5,6 +5,7 @@ import { Heatmap } from './Heatmap';
 import { COLORS } from '../constants';
 import { Plus, Clock, BarChart3, Trophy, Star, Trash2, Pencil, X, CheckCircle2, Circle, ListTodo, Flame, ChevronRight } from 'lucide-react';
 import { format, startOfWeek, endOfWeek, isWithinInterval, isSameDay, subDays, parseISO } from 'date-fns';
+import { InputModal } from './InputModal';
 
 interface DashboardProps {
   subjects: Subject[];
@@ -46,8 +47,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
   // --- Modal States ---
   const [isSubjectModalOpen, setIsSubjectModalOpen] = useState(false);
   const [editingSubjectId, setEditingSubjectId] = useState<string | null>(null);
-  
+
   const [isSessionModalOpen, setIsSessionModalOpen] = useState(false);
+  const [isDailyGoalModalOpen, setIsDailyGoalModalOpen] = useState(false);
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
 
   // --- Subject Form State ---
@@ -206,12 +208,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
   };
 
   const handleEditDailyGoal = () => {
-    const newGoal = prompt("Set your daily goal in hours:", (dailyGoal / 60).toString());
-    if (newGoal !== null) {
-      const minutes = parseFloat(newGoal) * 60;
-      if (!isNaN(minutes) && minutes > 0) {
-        onUpdateDailyGoal(Math.round(minutes));
-      }
+    setIsDailyGoalModalOpen(true);
+  };
+
+  const handleDailyGoalSubmit = (value: string) => {
+    const minutes = parseFloat(value) * 60;
+    if (!isNaN(minutes) && minutes > 0) {
+      onUpdateDailyGoal(Math.round(minutes));
     }
   };
 
@@ -734,6 +737,19 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </div>
         </div>
       )}
+
+      {/* Daily Goal Input Modal */}
+      <InputModal
+        isOpen={isDailyGoalModalOpen}
+        onClose={() => setIsDailyGoalModalOpen(false)}
+        onSubmit={handleDailyGoalSubmit}
+        title="Set Daily Goal"
+        message="Enter your daily study goal in hours:"
+        defaultValue={(dailyGoal / 60).toString()}
+        placeholder="e.g., 2.5"
+        type="number"
+        confirmText="Save Goal"
+      />
     </div>
   );
 };
