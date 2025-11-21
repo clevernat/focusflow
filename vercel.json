@@ -1,0 +1,16 @@
+{
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "focusflow-79b6wg5co-clevernats-projects.vercel.app"
+        }
+      ],
+      "destination": "https://focusflow-neon.vercel.app/:path*",
+      "permanent": true
+    }
+  ]
+}
+
