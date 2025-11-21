@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Subject, Session, ColorOption, TimerState, TimerActions, Task } from '../types';
 import { Timer } from './Timer';
 import { Heatmap } from './Heatmap';
@@ -44,6 +44,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onToggleTask,
   onDeleteTask
 }) => {
+  // Debug: Log dailyGoal prop changes
+  useEffect(() => {
+    console.log('📊 Dashboard received dailyGoal prop:', dailyGoal, 'minutes (', (dailyGoal / 60).toFixed(1), 'hours)');
+  }, [dailyGoal]);
+
   // --- Modal States ---
   const [isSubjectModalOpen, setIsSubjectModalOpen] = useState(false);
   const [editingSubjectId, setEditingSubjectId] = useState<string | null>(null);

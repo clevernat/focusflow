@@ -27,6 +27,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
+
+
   const fetchProfile = async (userId: string) => {
     try {
       const { data, error } = await supabase
@@ -35,7 +37,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .eq('id', userId)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        // If profile doesn't exist, create it
+        if (error.code === 'PGRST116') {
+          // Get user email from auth
+          const { data: { user } } = await supabase.auth.getUser();
+
+          const { data: newProfile, error: createError } = await supabase
+            .from('profiles')
+            .insert([{
+              id: userId,
+              email: user?.email || '',
+              daily_goal: 240,
+              theme: 'dark',
+              notifications_enabled: true,
+              total_xp: 0,
+              level: 1
+            }])
+            .select()
+            .single();
+
+          if (createError) {
+            console.error('Error creating profile:', createError);
+            throw createError;
+          }
+
+          setProfile(newProfile);
+          return;
+        }
+
+        throw error;
+      }
+
       setProfile(data);
     } catch (error) {
       console.error('Error fetching profile:', error);

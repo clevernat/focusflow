@@ -323,50 +323,6 @@ export default function RemindersPanel({ userId }: RemindersPanelProps) {
         </div>
       </div>
 
-      {/* Info Banner */}
-      <div className="mb-4 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-xs text-green-700 dark:text-green-300">
-            ✅ <strong>Reminders are active!</strong> They work on all pages - you can switch tabs freely. Checking every 10 seconds.
-          </p>
-          <button
-            onClick={async () => {
-              const now = new Date();
-              const testTime = new Date(now.getTime() + 60000); // 1 minute from now
-              const timeStr = `${testTime.getHours().toString().padStart(2, '0')}:${testTime.getMinutes().toString().padStart(2, '0')}`;
-              const currentDay = now.getDay();
-
-              console.log('🧪 Creating quick test reminder for:', timeStr, 'on day', currentDay);
-
-              try {
-                const { data, error } = await supabase
-                  .from('reminders')
-                  .insert({
-                    user_id: userId,
-                    title: '🧪 Quick Test - Delete Me',
-                    time: timeStr,
-                    days_of_week: [currentDay],
-                    enabled: true
-                  })
-                  .select();
-
-                if (error) throw error;
-
-                console.log('✅ Test reminder created:', data);
-                alert(`✅ Test reminder created!\n\nWill fire at: ${timeStr}\nCurrent time: ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}\n\nWatch the console and wait 1 minute!`);
-                fetchReminders();
-              } catch (error) {
-                console.error('❌ Error creating test reminder:', error);
-                alert('Failed to create test reminder');
-              }
-            }}
-            className="text-xs px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors whitespace-nowrap"
-          >
-            Quick Test (1 min)
-          </button>
-        </div>
-      </div>
-
       {/* Add/Edit Reminder Form */}
       {showAddForm && (
         <div className="mb-6 p-4 bg-gradient-to-br from-indigo-50 to-blue-50 dark:from-slate-700/50 dark:to-slate-700/30 rounded-lg border-2 border-indigo-200 dark:border-indigo-800">

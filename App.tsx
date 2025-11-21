@@ -89,6 +89,12 @@ const App: React.FC = () => {
   // --- Daily Goal State (Minutes) ---
   const dailyGoal = profile?.daily_goal || 240;
 
+  // Debug: Log when dailyGoal changes
+  useEffect(() => {
+    console.log('📊 Daily Goal changed:', dailyGoal, 'minutes (', (dailyGoal / 60).toFixed(1), 'hours)');
+    console.log('📊 Profile data:', profile);
+  }, [dailyGoal, profile]);
+
   // --- Global Timer State ---
   const [timerActive, setTimerActive] = useState(false);
   const [timerPaused, setTimerPaused] = useState(false);
