@@ -17,7 +17,7 @@ import { useReminderChecker } from './hooks/useReminderChecker';
 import { useModal } from './hooks/useModal';
 
 const App: React.FC = () => {
-  const { user, profile, signOut } = useAuth();
+  const { user, profile, signOut, refreshProfile } = useAuth();
   const {
     subjects,
     sessions,
@@ -369,6 +369,11 @@ const App: React.FC = () => {
         .eq('id', user.id);
 
       if (error) throw error;
+
+      // Refresh profile to get updated daily goal
+      await refreshProfile();
+
+      showAlert(`Daily goal updated to ${(newGoal / 60).toFixed(1)} hours!`, 'Success', 'success');
     } catch (error) {
       console.error('Error updating daily goal:', error);
       showAlert('Failed to update daily goal. Please try again.', 'Error', 'error');
