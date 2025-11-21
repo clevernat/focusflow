@@ -8,13 +8,19 @@ interface TimerProps {
   timerState: TimerState;
   timerActions: TimerActions;
   onSaveSession: (sessionData: Omit<Session, 'id'>) => void;
+  pomodoroSettings?: {
+    focusMinutes: number;
+    shortBreakMinutes: number;
+    longBreakMinutes: number;
+  };
 }
 
-export const Timer: React.FC<TimerProps> = ({ 
-  subjects, 
-  timerState, 
-  timerActions, 
-  onSaveSession 
+export const Timer: React.FC<TimerProps> = ({
+  subjects,
+  timerState,
+  timerActions,
+  onSaveSession,
+  pomodoroSettings = { focusMinutes: 25, shortBreakMinutes: 5, longBreakMinutes: 15 }
 }) => {
   const { isActive, isPaused, seconds, totalSeconds, subjectId: selectedSubjectId, mode, isZenMode, audioEnabled } = timerState;
   const { start, pause, stop, reset, setSubjectId, setMode, setDuration, toggleZenMode, toggleAudio } = timerActions;
@@ -26,6 +32,9 @@ export const Timer: React.FC<TimerProps> = ({
   const [topic, setTopic] = useState('');
   const [notes, setNotes] = useState('');
   const [rating, setRating] = useState(3);
+
+  // Custom duration input
+  const [customMinutes, setCustomMinutes] = useState<string>('');
 
   const formatTime = (totalSeconds: number) => {
     const h = Math.floor(totalSeconds / 3600);
@@ -99,40 +108,43 @@ export const Timer: React.FC<TimerProps> = ({
   const activeColor = activeSubject ? COLORS.find(c => c.id === activeSubject.color) : null;
 
   return (
-    <div className={`bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-100 dark:border-slate-700 p-6 flex flex-col items-center justify-center transition-all duration-500 relative overflow-hidden ${isZenMode ? 'h-[500px] w-full max-w-2xl shadow-2xl' : 'min-h-[320px]'}`}>
-      
+    <div className={`bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 p-8 flex flex-col items-center justify-center transition-all duration-500 relative overflow-hidden ${isZenMode ? 'h-[500px] w-full max-w-2xl shadow-2xl' : 'min-h-[320px]'}`}>
+
+      {/* Animated Background Gradient */}
+      <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-purple-500/5 to-pink-500/5 dark:from-blue-500/10 dark:via-purple-500/10 dark:to-pink-500/10 opacity-50 pointer-events-none"></div>
+
       {/* Top Controls (Mode Switcher & Zen/Audio) */}
       {!showCompleteModal && (
         <div className="absolute top-6 left-0 right-0 px-6 flex justify-between items-start z-10">
-           <div className="flex p-1 bg-gray-100 dark:bg-slate-700/50 rounded-lg">
-             <button 
+           <div className="flex p-1.5 bg-white/80 dark:bg-slate-700/80 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200 dark:border-slate-600">
+             <button
                onClick={() => setMode('stopwatch')}
-               className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${mode === 'stopwatch' ? 'bg-white dark:bg-slate-600 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700'}`}
+               className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all ${mode === 'stopwatch' ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md shadow-blue-500/30' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-600'}`}
              >
                Stopwatch
              </button>
-             <button 
+             <button
                onClick={() => setMode('timer')}
-               className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${mode === 'timer' ? 'bg-white dark:bg-slate-600 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700'}`}
+               className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all ${mode === 'timer' ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md shadow-blue-500/30' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-600'}`}
              >
                Pomodoro
              </button>
            </div>
 
            <div className="flex gap-2">
-             <button 
+             <button
                onClick={toggleAudio}
-               className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700"
+               className="p-2.5 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-all rounded-xl hover:bg-white/80 dark:hover:bg-slate-700/80 backdrop-blur-sm border border-transparent hover:border-slate-200 dark:hover:border-slate-600 hover:shadow-sm"
                title={audioEnabled ? "Mute Sounds" : "Enable Sounds"}
              >
-               {audioEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
+               {audioEnabled ? <Volume2 size={20} /> : <VolumeX size={20} />}
              </button>
-             <button 
+             <button
                onClick={toggleZenMode}
-               className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700"
+               className="p-2.5 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-all rounded-xl hover:bg-white/80 dark:hover:bg-slate-700/80 backdrop-blur-sm border border-transparent hover:border-slate-200 dark:hover:border-slate-600 hover:shadow-sm"
                title={isZenMode ? "Exit Zen Mode" : "Enter Zen Mode"}
              >
-               {isZenMode ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
+               {isZenMode ? <Minimize2 size={20} /> : <Maximize2 size={20} />}
              </button>
            </div>
         </div>
@@ -140,71 +152,150 @@ export const Timer: React.FC<TimerProps> = ({
 
       {!showCompleteModal ? (
         <>
-          <div className="mb-8 text-center relative mt-12">
+          <div className="mb-12 text-center relative mt-16 pb-8">
             {/* Countdown SVG Circle */}
             {mode === 'timer' && (
               <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none">
-                <svg className="w-72 h-72 transform -rotate-90 opacity-10 dark:opacity-20">
-                   <circle cx="144" cy="144" r="120" stroke="currentColor" strokeWidth="4" fill="transparent" className="text-gray-400" />
+                {/* Background circle */}
+                <svg className="w-80 h-80 transform -rotate-90">
+                   <circle cx="160" cy="160" r="130" stroke="currentColor" strokeWidth="8" fill="transparent" className="text-slate-200 dark:text-slate-700 opacity-30" />
                 </svg>
-                <svg className="w-72 h-72 transform -rotate-90 absolute top-0 left-0">
-                   <circle 
-                     cx="144" cy="144" r="120" 
-                     stroke="currentColor" 
-                     strokeWidth="4" 
-                     fill="transparent" 
+                {/* Progress circle */}
+                <svg className="w-80 h-80 transform -rotate-90 absolute top-0 left-0">
+                   <circle
+                     cx="160" cy="160" r="130"
+                     stroke="url(#gradient)"
+                     strokeWidth="8"
+                     fill="transparent"
                      strokeDasharray={circleCircumference}
                      strokeDashoffset={strokeDashoffset}
                      strokeLinecap="round"
-                     className={`${isActive ? 'text-blue-500' : 'text-gray-300 dark:text-slate-600'} transition-all duration-1000 ease-linear`}
+                     className="transition-all duration-1000 ease-linear drop-shadow-lg"
                    />
+                   <defs>
+                     <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                       <stop offset="0%" stopColor="#3b82f6" />
+                       <stop offset="50%" stopColor="#8b5cf6" />
+                       <stop offset="100%" stopColor="#ec4899" />
+                     </linearGradient>
+                   </defs>
                 </svg>
               </div>
             )}
 
-            <h2 className="text-sm font-semibold text-gray-400 dark:text-slate-500 uppercase tracking-wider mb-2 relative z-10">
+            <h2 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-3 relative z-10 opacity-70">
               {mode === 'stopwatch' ? 'Focus Time' : 'Time Remaining'}
             </h2>
-            <div className={`font-mono font-bold text-gray-800 dark:text-white tracking-tight relative z-10 transition-all ${isZenMode ? 'text-8xl' : 'text-7xl'}`}>
+            <div className={`font-mono font-black bg-gradient-to-br from-slate-800 to-slate-600 dark:from-white dark:to-slate-300 bg-clip-text text-transparent tracking-tight relative z-10 transition-all drop-shadow-sm ${isZenMode ? 'text-8xl' : 'text-7xl'}`}>
               {formatTime(seconds)}
             </div>
             
             {/* Pomodoro Presets */}
             {mode === 'timer' && !isActive && seconds === totalSeconds && (
-              <div className="flex gap-2 justify-center mt-4 relative z-10">
-                <button onClick={() => setDuration(25 * 60)} className="px-3 py-1 text-xs bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 rounded-full flex items-center gap-1 transition-colors text-gray-600 dark:text-gray-300">
-                  <Zap size={12} /> Focus
-                </button>
-                <button onClick={() => setDuration(5 * 60)} className="px-3 py-1 text-xs bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 rounded-full flex items-center gap-1 transition-colors text-gray-600 dark:text-gray-300">
-                  <Coffee size={12} /> Short Break
-                </button>
-                <button onClick={() => setDuration(15 * 60)} className="px-3 py-1 text-xs bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 rounded-full flex items-center gap-1 transition-colors text-gray-600 dark:text-gray-300">
-                  <RefreshCw size={12} /> Long Break
-                </button>
+              <div className="space-y-4 mt-6 relative z-10">
+                {/* Preset Buttons */}
+                <div className="flex flex-wrap gap-3 justify-center">
+                  <button
+                    onClick={() => setDuration(pomodoroSettings.focusMinutes * 60)}
+                    className="group relative px-5 py-3 bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 hover:from-blue-600 hover:via-blue-700 hover:to-indigo-700 text-white rounded-2xl flex items-center gap-2.5 transition-all shadow-xl shadow-blue-500/40 hover:shadow-blue-500/60 hover:scale-105 active:scale-95 border border-blue-400/20"
+                  >
+                    <div className="absolute inset-0 bg-white/20 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                    <Zap size={16} className="group-hover:animate-pulse relative z-10" />
+                    <span className="font-bold text-sm relative z-10">Focus</span>
+                    <span className="text-xs opacity-90 bg-white/20 px-2 py-0.5 rounded-full relative z-10">{pomodoroSettings.focusMinutes}m</span>
+                  </button>
+                  <button
+                    onClick={() => setDuration(pomodoroSettings.shortBreakMinutes * 60)}
+                    className="group relative px-5 py-3 bg-gradient-to-br from-emerald-500 via-green-600 to-teal-600 hover:from-emerald-600 hover:via-green-700 hover:to-teal-700 text-white rounded-2xl flex items-center gap-2.5 transition-all shadow-xl shadow-green-500/40 hover:shadow-green-500/60 hover:scale-105 active:scale-95 border border-green-400/20"
+                  >
+                    <div className="absolute inset-0 bg-white/20 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                    <Coffee size={16} className="group-hover:animate-pulse relative z-10" />
+                    <span className="font-bold text-sm relative z-10">Short Break</span>
+                    <span className="text-xs opacity-90 bg-white/20 px-2 py-0.5 rounded-full relative z-10">{pomodoroSettings.shortBreakMinutes}m</span>
+                  </button>
+                  <button
+                    onClick={() => setDuration(pomodoroSettings.longBreakMinutes * 60)}
+                    className="group relative px-5 py-3 bg-gradient-to-br from-purple-500 via-violet-600 to-fuchsia-600 hover:from-purple-600 hover:via-violet-700 hover:to-fuchsia-700 text-white rounded-2xl flex items-center gap-2.5 transition-all shadow-xl shadow-purple-500/40 hover:shadow-purple-500/60 hover:scale-105 active:scale-95 border border-purple-400/20"
+                  >
+                    <div className="absolute inset-0 bg-white/20 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                    <RefreshCw size={16} className="group-hover:animate-pulse relative z-10" />
+                    <span className="font-bold text-sm relative z-10">Long Break</span>
+                    <span className="text-xs opacity-90 bg-white/20 px-2 py-0.5 rounded-full relative z-10">{pomodoroSettings.longBreakMinutes}m</span>
+                  </button>
+                </div>
+
+                {/* Divider */}
+                <div className="flex items-center gap-4 my-2">
+                  <div className="flex-1 h-px bg-gradient-to-r from-transparent via-slate-300 dark:via-slate-600 to-transparent"></div>
+                  <span className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest px-2 py-1 bg-white/50 dark:bg-slate-800/50 rounded-full border border-slate-200 dark:border-slate-700">Custom</span>
+                  <div className="flex-1 h-px bg-gradient-to-r from-transparent via-slate-300 dark:via-slate-600 to-transparent"></div>
+                </div>
+
+                {/* Custom Duration Input */}
+                <div className="flex items-center justify-center gap-3">
+                  <div className="relative flex-1 max-w-xs">
+                    <input
+                      type="number"
+                      min="1"
+                      max="999"
+                      placeholder="Enter minutes..."
+                      value={customMinutes}
+                      onChange={(e) => setCustomMinutes(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && customMinutes) {
+                          const mins = parseInt(customMinutes);
+                          if (mins > 0 && mins <= 999) {
+                            setDuration(mins * 60);
+                            setCustomMinutes('');
+                          }
+                        }
+                      }}
+                      className="w-full px-5 py-3.5 text-base bg-white dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-600 rounded-xl text-center focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 text-slate-700 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 transition-all font-semibold shadow-sm hover:shadow-md"
+                    />
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 dark:text-slate-500 pointer-events-none bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded-md">
+                      min
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      if (customMinutes) {
+                        const mins = parseInt(customMinutes);
+                        if (mins > 0 && mins <= 999) {
+                          setDuration(mins * 60);
+                          setCustomMinutes('');
+                        }
+                      }
+                    }}
+                    disabled={!customMinutes || parseInt(customMinutes) <= 0}
+                    className="px-7 py-3.5 text-sm font-bold bg-gradient-to-br from-indigo-500 via-indigo-600 to-purple-600 hover:from-indigo-600 hover:via-indigo-700 hover:to-purple-700 disabled:from-slate-300 disabled:to-slate-300 dark:disabled:from-slate-700 dark:disabled:to-slate-700 text-white rounded-xl transition-all disabled:cursor-not-allowed shadow-xl shadow-indigo-500/40 hover:shadow-indigo-500/60 disabled:shadow-none hover:scale-105 active:scale-95 disabled:scale-100 border border-indigo-400/20 disabled:border-0"
+                  >
+                    Set Timer
+                  </button>
+                </div>
               </div>
             )}
           </div>
 
-          <div className="w-full max-w-md space-y-6 relative z-10">
+          <div className="w-full max-w-md space-y-6 relative z-10 mt-8">
             {!isActive && (mode === 'stopwatch' ? seconds === 0 : seconds === totalSeconds) ? (
-              <div className="relative">
+              <div className="relative group">
                 <select
                   value={selectedSubjectId}
                   onChange={(e) => setSubjectId(e.target.value)}
-                  className="w-full p-3 pl-4 bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-lg appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700 dark:text-gray-200"
+                  className="w-full p-4 pl-5 pr-12 bg-white dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-600 rounded-xl appearance-none focus:outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 text-slate-700 dark:text-slate-200 font-semibold shadow-sm hover:shadow-md transition-all cursor-pointer"
                 >
                   <option value="" disabled>Select a Subject...</option>
                   {subjects.map((s) => (
                     <option key={s.id} value={s.id}>{s.name}</option>
                   ))}
                 </select>
-                <div className="absolute right-3 top-3.5 pointer-events-none text-gray-400 dark:text-slate-500">
-                   <TimerIcon size={20} />
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 dark:text-slate-500 group-hover:text-blue-500 transition-colors">
+                   <TimerIcon size={22} />
                 </div>
               </div>
             ) : (
-              <div className={`text-center p-3 rounded-lg ${activeColor?.bgClass || 'bg-gray-100 dark:bg-slate-700'} bg-opacity-20 dark:bg-opacity-30 border ${activeColor ? activeColor.bgClass.replace('bg-', 'border-') : 'border-gray-200 dark:border-slate-600'} border-opacity-20 dark:border-opacity-30`}>
-                <span className={`font-semibold ${activeColor?.textClass || 'text-gray-700 dark:text-gray-300'}`}>
+              <div className={`text-center p-4 rounded-xl ${activeColor?.bgClass || 'bg-slate-100 dark:bg-slate-700'} bg-opacity-20 dark:bg-opacity-30 border-2 ${activeColor ? activeColor.bgClass.replace('bg-', 'border-') : 'border-slate-200 dark:border-slate-600'} border-opacity-30 dark:border-opacity-30 shadow-sm backdrop-blur-sm`}>
+                <span className={`font-bold text-base ${activeColor?.textClass || 'text-slate-700 dark:text-slate-300'}`}>
                   Studying: {activeSubject?.name}
                 </span>
               </div>
@@ -215,13 +306,13 @@ export const Timer: React.FC<TimerProps> = ({
                 <button
                   onClick={handleStart}
                   disabled={!selectedSubjectId}
-                  className={`flex items-center gap-2 px-8 py-3 rounded-full text-white font-medium transition-all ${
-                    selectedSubjectId 
-                      ? 'bg-gray-900 dark:bg-indigo-600 hover:bg-gray-800 dark:hover:bg-indigo-500 shadow-lg shadow-gray-200 dark:shadow-none scale-105' 
-                      : 'bg-gray-300 dark:bg-slate-700 cursor-not-allowed'
+                  className={`group flex items-center gap-3 px-10 py-4 rounded-2xl text-white font-bold text-base transition-all shadow-xl ${
+                    selectedSubjectId
+                      ? 'bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-700 hover:via-indigo-700 hover:to-purple-700 shadow-blue-500/50 hover:shadow-blue-500/70 hover:scale-105 active:scale-95 border border-blue-400/20'
+                      : 'bg-slate-300 dark:bg-slate-700 cursor-not-allowed shadow-none border-0'
                   }`}
                 >
-                  <Play size={20} fill="currentColor" />
+                  <Play size={22} fill="currentColor" className="group-hover:scale-110 transition-transform" />
                   Start Session
                 </button>
               ) : (
@@ -229,26 +320,26 @@ export const Timer: React.FC<TimerProps> = ({
                   <button
                     onClick={handleStart} // Resume if paused
                     hidden={!isPaused && isActive}
-                    className="flex items-center gap-2 px-6 py-3 rounded-full bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-500 border border-yellow-200 dark:border-yellow-800 font-medium hover:bg-yellow-100 dark:hover:bg-yellow-900/50 transition-colors"
+                    className="group flex items-center gap-2.5 px-7 py-3.5 rounded-xl bg-gradient-to-br from-amber-50 to-yellow-50 dark:from-yellow-900/30 dark:to-amber-900/30 text-amber-700 dark:text-yellow-400 border-2 border-amber-200 dark:border-yellow-800 font-bold hover:from-amber-100 hover:to-yellow-100 dark:hover:from-yellow-900/50 dark:hover:to-amber-900/50 transition-all shadow-lg hover:shadow-xl hover:scale-105 active:scale-95"
                   >
-                     <Play size={20} />
+                     <Play size={20} className="group-hover:scale-110 transition-transform" />
                      Resume
                   </button>
-                  
+
                   <button
                     onClick={handlePause}
                     hidden={isPaused || !isActive}
-                    className="flex items-center gap-2 px-6 py-3 rounded-full bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-500 border border-yellow-200 dark:border-yellow-800 font-medium hover:bg-yellow-100 dark:hover:bg-yellow-900/50 transition-colors"
+                    className="group flex items-center gap-2.5 px-7 py-3.5 rounded-xl bg-gradient-to-br from-amber-50 to-yellow-50 dark:from-yellow-900/30 dark:to-amber-900/30 text-amber-700 dark:text-yellow-400 border-2 border-amber-200 dark:border-yellow-800 font-bold hover:from-amber-100 hover:to-yellow-100 dark:hover:from-yellow-900/50 dark:hover:to-amber-900/50 transition-all shadow-lg hover:shadow-xl hover:scale-105 active:scale-95"
                   >
-                    <Pause size={20} />
+                    <Pause size={20} className="group-hover:scale-110 transition-transform" />
                     Pause
                   </button>
 
                   <button
                     onClick={handleComplete}
-                    className="flex items-center gap-2 px-6 py-3 rounded-full bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800 font-medium hover:bg-green-100 dark:hover:bg-green-900/50 transition-colors"
+                    className="group flex items-center gap-2.5 px-7 py-3.5 rounded-xl bg-gradient-to-br from-emerald-50 to-green-50 dark:from-green-900/30 dark:to-emerald-900/30 text-emerald-700 dark:text-green-400 border-2 border-emerald-200 dark:border-green-800 font-bold hover:from-emerald-100 hover:to-green-100 dark:hover:from-green-900/50 dark:hover:to-emerald-900/50 transition-all shadow-lg hover:shadow-xl hover:scale-105 active:scale-95"
                   >
-                    <CheckCircle2 size={20} />
+                    <CheckCircle2 size={20} className="group-hover:scale-110 transition-transform" />
                     {mode === 'timer' && seconds === 0 ? 'Finish' : 'Complete'}
                   </button>
                 </>

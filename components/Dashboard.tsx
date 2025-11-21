@@ -24,6 +24,11 @@ interface DashboardProps {
   onAddTask: (text: string) => void;
   onToggleTask: (id: string) => void;
   onDeleteTask: (id: string) => void;
+  pomodoroSettings?: {
+    focusMinutes: number;
+    shortBreakMinutes: number;
+    longBreakMinutes: number;
+  };
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({
@@ -42,7 +47,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onDeleteSubject,
   onAddTask,
   onToggleTask,
-  onDeleteTask
+  onDeleteTask,
+  pomodoroSettings
 }) => {
   // Debug: Log dailyGoal prop changes
   useEffect(() => {
@@ -234,11 +240,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
     return (
        <div className="flex items-center justify-center w-full h-full">
           <div className="w-full max-w-3xl">
-            <Timer 
-              subjects={subjects} 
+            <Timer
+              subjects={subjects}
               timerState={timerState}
               timerActions={timerActions}
-              onSaveSession={onSaveSession} 
+              onSaveSession={onSaveSession}
+              pomodoroSettings={pomodoroSettings}
             />
           </div>
        </div>
@@ -265,7 +272,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
              </div>
              <div>
                <p className="text-xs text-gray-500 dark:text-orange-200 font-semibold uppercase tracking-wider leading-none">Current Streak</p>
-               <p className="text-lg font-bold text-orange-600 dark:text-orange-400 leading-none">{streakCount} <span className="text-sm font-normal">Days</span></p>
+               <p className="text-lg font-bold text-orange-600 dark:text-orange-400 leading-none">{streakCount} <span className="text-sm font-normal">{streakCount === 1 ? 'Day' : 'Days'}</span></p>
              </div>
           </div>
         )}
@@ -330,7 +337,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </div>
             <span className="text-sm text-gray-500 dark:text-slate-400 font-medium">This Week</span>
           </div>
-          <div className="text-2xl font-bold text-gray-800 dark:text-white">{(thisWeekMinutes / 60).toFixed(1)} <span className="text-sm font-normal text-gray-400 dark:text-slate-500">hrs</span></div>
+          <div className="text-2xl font-bold text-gray-800 dark:text-white">{(thisWeekMinutes / 60).toFixed(1)} <span className="text-sm font-normal text-gray-400 dark:text-slate-500">{(thisWeekMinutes / 60) === 1 ? 'hr' : 'hrs'}</span></div>
         </div>
 
         <div className="bg-white dark:bg-slate-800 p-5 rounded-xl border border-gray-100 dark:border-slate-700 shadow-sm transition-colors flex flex-col justify-center">
@@ -340,7 +347,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </div>
             <span className="text-sm text-gray-500 dark:text-slate-400 font-medium">Total Hours</span>
           </div>
-          <div className="text-2xl font-bold text-gray-800 dark:text-white">{(totalMinutes / 60).toFixed(1)} <span className="text-sm font-normal text-gray-400 dark:text-slate-500">hrs</span></div>
+          <div className="text-2xl font-bold text-gray-800 dark:text-white">{(totalMinutes / 60).toFixed(1)} <span className="text-sm font-normal text-gray-400 dark:text-slate-500">{(totalMinutes / 60) === 1 ? 'hr' : 'hrs'}</span></div>
         </div>
 
         <div className="bg-white dark:bg-slate-800 p-5 rounded-xl border border-gray-100 dark:border-slate-700 shadow-sm transition-colors flex flex-col justify-center">
@@ -357,11 +364,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Timer Column */}
         <div className="lg:col-span-2 space-y-6">
-          <Timer 
-            subjects={subjects} 
+          <Timer
+            subjects={subjects}
             timerState={timerState}
             timerActions={timerActions}
-            onSaveSession={onSaveSession} 
+            onSaveSession={onSaveSession}
+            pomodoroSettings={pomodoroSettings}
           />
           <Heatmap sessions={sessions} />
           
@@ -380,7 +388,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                      return (
                        <div key={sub.id} className={`flex items-center gap-2 px-3 py-1.5 rounded-full bg-opacity-10 dark:bg-opacity-20 ${color?.bgClass.replace('bg-', 'text-')}`}>
                          <div className={`w-2 h-2 rounded-full ${color?.bgClass}`}></div>
-                         <span className="text-sm font-medium text-gray-700 dark:text-gray-200">{sub.name}: {subMins}m</span>
+                         <span className="text-sm font-medium text-gray-700 dark:text-gray-200">{sub.name}: {subMins} {subMins === 1 ? 'min' : 'mins'}</span>
                        </div>
                      );
                    })}
@@ -578,7 +586,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                             <Star size={10} className="text-yellow-400 fill-yellow-400" />
                             <span className="text-xs text-gray-400 dark:text-slate-500">{session.rating}</span>
                             <span className="text-xs text-gray-300 dark:text-slate-600 mx-1">•</span>
-                            <span className="text-xs text-gray-400 dark:text-slate-500">{session.durationMinutes} min</span>
+                            <span className="text-xs text-gray-400 dark:text-slate-500">{session.durationMinutes} {session.durationMinutes === 1 ? 'min' : 'mins'}</span>
                           </div>
                           <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity relative z-10">
                              <button 

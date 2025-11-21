@@ -230,12 +230,12 @@ export const Analytics: React.FC<AnalyticsProps> = ({ sessions, subjects, isDark
                      </div>
                      <div>
                        <div className="font-medium text-gray-800 dark:text-gray-200">{sub.name}</div>
-                       <div className="text-xs text-gray-500 dark:text-slate-400">{count} sessions</div>
+                       <div className="text-xs text-gray-500 dark:text-slate-400">{count} {count === 1 ? 'session' : 'sessions'}</div>
                      </div>
                    </div>
                    <div className="text-right">
                       <div className="font-medium text-gray-800 dark:text-gray-200">{typeof avgR === 'string' ? avgR : avgR + ' ⭐'}</div>
-                      <div className="text-xs text-gray-500 dark:text-slate-400">{totalHours.toFixed(1)} hours</div>
+                      <div className="text-xs text-gray-500 dark:text-slate-400">{totalHours.toFixed(1)} {totalHours === 1 ? 'hour' : 'hours'}</div>
                    </div>
                  </div>
                );

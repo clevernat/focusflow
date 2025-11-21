@@ -95,15 +95,129 @@ const App: React.FC = () => {
     console.log('📊 Profile data:', profile);
   }, [dailyGoal, profile]);
 
-  // --- Global Timer State ---
-  const [timerActive, setTimerActive] = useState(false);
-  const [timerPaused, setTimerPaused] = useState(false);
-  const [timerSeconds, setTimerSeconds] = useState(0);
-  const [timerTotalSeconds, setTimerTotalSeconds] = useState(0); // Used for countdown progress
-  const [timerSubjectId, setTimerSubjectId] = useState<string>('');
-  const [timerMode, setTimerMode] = useState<TimerMode>('stopwatch');
-  const [isZenMode, setIsZenMode] = useState(false);
-  const [audioEnabled, setAudioEnabled] = useState(true);
+  // --- Global Timer State with localStorage persistence ---
+  const [timerActive, setTimerActive] = useState(() => {
+    const saved = localStorage.getItem('focusflow_timer_active');
+    return saved ? JSON.parse(saved) : false;
+  });
+  const [timerPaused, setTimerPaused] = useState(() => {
+    const saved = localStorage.getItem('focusflow_timer_paused');
+    return saved ? JSON.parse(saved) : false;
+  });
+  const [timerSeconds, setTimerSeconds] = useState(() => {
+    const saved = localStorage.getItem('focusflow_timer_seconds');
+    return saved ? JSON.parse(saved) : 0;
+  });
+  const [timerTotalSeconds, setTimerTotalSeconds] = useState(() => {
+    const saved = localStorage.getItem('focusflow_timer_total_seconds');
+    return saved ? JSON.parse(saved) : 0;
+  });
+  const [timerSubjectId, setTimerSubjectId] = useState<string>(() => {
+    const saved = localStorage.getItem('focusflow_timer_subject_id');
+    return saved || '';
+  });
+  const [timerMode, setTimerMode] = useState<TimerMode>(() => {
+    const saved = localStorage.getItem('focusflow_timer_mode');
+    return (saved as TimerMode) || 'stopwatch';
+  });
+  const [isZenMode, setIsZenMode] = useState(() => {
+    const saved = localStorage.getItem('focusflow_zen_mode');
+    return saved ? JSON.parse(saved) : false;
+  });
+  const [audioEnabled, setAudioEnabled] = useState(() => {
+    const saved = localStorage.getItem('focusflow_audio_enabled');
+    return saved ? JSON.parse(saved) : true;
+  });
+  const [timerStartTime, setTimerStartTime] = useState<number | null>(() => {
+    const saved = localStorage.getItem('focusflow_timer_start_time');
+    return saved ? JSON.parse(saved) : null;
+  });
+
+  // Persist timer state to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('focusflow_timer_active', JSON.stringify(timerActive));
+  }, [timerActive]);
+
+  useEffect(() => {
+    localStorage.setItem('focusflow_timer_paused', JSON.stringify(timerPaused));
+  }, [timerPaused]);
+
+  useEffect(() => {
+    localStorage.setItem('focusflow_timer_seconds', JSON.stringify(timerSeconds));
+  }, [timerSeconds]);
+
+  useEffect(() => {
+    localStorage.setItem('focusflow_timer_total_seconds', JSON.stringify(timerTotalSeconds));
+  }, [timerTotalSeconds]);
+
+  useEffect(() => {
+    localStorage.setItem('focusflow_timer_subject_id', timerSubjectId);
+  }, [timerSubjectId]);
+
+  useEffect(() => {
+    localStorage.setItem('focusflow_timer_mode', timerMode);
+  }, [timerMode]);
+
+  useEffect(() => {
+    localStorage.setItem('focusflow_zen_mode', JSON.stringify(isZenMode));
+  }, [isZenMode]);
+
+  useEffect(() => {
+    localStorage.setItem('focusflow_audio_enabled', JSON.stringify(audioEnabled));
+  }, [audioEnabled]);
+
+  useEffect(() => {
+    if (timerStartTime !== null) {
+      localStorage.setItem('focusflow_timer_start_time', JSON.stringify(timerStartTime));
+    } else {
+      localStorage.removeItem('focusflow_timer_start_time');
+    }
+  }, [timerStartTime]);
+
+  // Track the initial seconds when timer starts (for accurate restoration)
+  const [timerInitialSeconds, setTimerInitialSeconds] = useState(() => {
+    const saved = localStorage.getItem('focusflow_timer_initial_seconds');
+    return saved ? JSON.parse(saved) : 0;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('focusflow_timer_initial_seconds', JSON.stringify(timerInitialSeconds));
+  }, [timerInitialSeconds]);
+
+  // Restore timer on page load - calculate elapsed time if timer was running
+  useEffect(() => {
+    const savedStartTime = localStorage.getItem('focusflow_timer_start_time');
+    const savedActive = localStorage.getItem('focusflow_timer_active');
+    const savedPaused = localStorage.getItem('focusflow_timer_paused');
+    const savedMode = localStorage.getItem('focusflow_timer_mode');
+    const savedInitialSeconds = localStorage.getItem('focusflow_timer_initial_seconds');
+
+    if (savedStartTime && savedActive === 'true' && savedPaused === 'false') {
+      const startTime = JSON.parse(savedStartTime);
+      const now = Date.now();
+      const elapsedSeconds = Math.floor((now - startTime) / 1000);
+
+      if (savedMode === 'stopwatch') {
+        // For stopwatch, calculate from initial seconds + elapsed time
+        const initialSeconds = savedInitialSeconds ? JSON.parse(savedInitialSeconds) : 0;
+        setTimerSeconds(initialSeconds + elapsedSeconds);
+      } else {
+        // For timer (countdown), calculate from initial seconds - elapsed time
+        const initialSeconds = savedInitialSeconds ? JSON.parse(savedInitialSeconds) : 0;
+        const newSeconds = Math.max(0, initialSeconds - elapsedSeconds);
+        setTimerSeconds(newSeconds);
+
+        // If timer ran out while page was closed, stop it
+        if (newSeconds === 0) {
+          setTimerActive(false);
+          setTimerPaused(false);
+          setTimerStartTime(null);
+          playTone('alarm');
+          sendNotification("FocusFlow", "Time is up! Great work.");
+        }
+      }
+    }
+  }, []); // Run only once on mount
 
   // --- Audio Engine ---
   const playTone = useCallback((type: 'start' | 'complete' | 'alarm' | 'tick') => {
@@ -174,127 +288,91 @@ const App: React.FC = () => {
   }, []);
 
   const sendNotification = async (title: string, body: string) => {
-    console.log('🔔 sendNotification called with:', { title, body });
-    console.log('🌐 Window has Notification API:', 'Notification' in window);
-
     if (!('Notification' in window)) {
-      console.error('❌ Notifications not supported');
-      showAlert('Notifications are not supported in this browser.', 'Not Supported', 'error');
+      console.error('Notifications not supported');
       return;
     }
 
-    console.log('📢 Current permission:', Notification.permission);
-
     try {
       if (Notification.permission === 'granted') {
-        console.log('✅ Permission already granted, creating notification...');
+        // Create and show notification
         const notification = new Notification(title, {
           body,
           icon: '/icon.svg',
           badge: '/icon.svg',
-          requireInteraction: true, // Changed to true - notification stays until clicked
-          silent: false, // Make sure it makes a sound
-          tag: 'focusflow-test' // Unique tag
+          requireInteraction: false, // Don't force user to dismiss
+          silent: false,
+          tag: 'focusflow-timer'
         });
 
-        // Add event listeners to see if notification is working
+        // Close notification when clicked
         notification.onclick = () => {
-          console.log('✅ Notification was clicked!');
-          showAlert('You clicked the notification!', 'Notification Clicked', 'success');
+          window.focus();
           notification.close();
         };
-
-        notification.onshow = () => {
-          console.log('✅ Notification is showing!');
-        };
-
-        notification.onerror = (error) => {
-          console.error('❌ Notification error:', error);
-        };
-
-        console.log('✅ Notification created:', notification);
-        showAlert('Notification sent! It should appear on your screen now.\n\nIf you don\'t see it:\n1. Check your system notification settings\n2. Turn off Do Not Disturb mode\n3. Check your notification center/tray', 'Notification Sent', 'success');
       } else if (Notification.permission === 'denied') {
-        console.error('❌ Permission denied');
-        showAlert('Notifications are blocked. Please enable them in your browser settings:\n\n1. Click the lock icon (🔒) in the address bar\n2. Find "Notifications"\n3. Change to "Allow"\n4. Refresh the page', 'Permission Denied', 'error');
+        console.warn('Notification permission denied');
       } else {
-        console.log('⚠️ Permission not set, requesting...');
-        // Request permission
+        // Request permission silently
         const permission = await Notification.requestPermission();
-        console.log('📢 Permission result:', permission);
 
         if (permission === 'granted') {
-          console.log('✅ Permission granted! Creating notification...');
+          // Create notification after permission granted
           const notification = new Notification(title, {
             body,
             icon: '/icon.svg',
             badge: '/icon.svg',
-            requireInteraction: true,
+            requireInteraction: false,
             silent: false,
-            tag: 'focusflow-test'
+            tag: 'focusflow-timer'
           });
 
           notification.onclick = () => {
-            console.log('✅ Notification was clicked!');
-            showAlert('You clicked the notification!', 'Notification Clicked', 'success');
+            window.focus();
             notification.close();
           };
-
-          notification.onshow = () => {
-            console.log('✅ Notification is showing!');
-          };
-
-          notification.onerror = (error) => {
-            console.error('❌ Notification error:', error);
-          };
-
-          console.log('✅ Notification created:', notification);
-          showAlert('Permission granted! Notification sent!\n\nIt should appear on your screen now.\n\nIf you don\'t see it, check:\n1. System notification settings\n2. Do Not Disturb mode\n3. Notification center/tray', 'Success', 'success');
-        } else if (permission === 'denied') {
-          console.error('❌ User denied permission');
-          showAlert('You denied notification permission. You can enable it later in browser settings.', 'Permission Denied', 'error');
-        } else {
-          console.warn('⚠️ Permission result was:', permission);
-          showAlert('Notification permission was not granted. Status: ' + permission, 'Permission Not Granted', 'warning');
         }
       }
     } catch (error) {
-      console.error('❌ Notification error:', error);
-      showAlert('Failed to send notification. Error: ' + (error as Error).message + '\n\nPlease check your browser settings and console for details.', 'Notification Error', 'error');
+      console.error('Notification error:', error);
     }
   };
 
-  // Timer Interval Logic
+  // Timer Interval Logic - Calculate based on elapsed time from start
   useEffect(() => {
     let interval: number | null = null;
-    
-    if (timerActive && !timerPaused) {
+
+    if (timerActive && !timerPaused && timerStartTime) {
       interval = window.setInterval(() => {
-        setTimerSeconds((currentSeconds) => {
-          if (timerMode === 'stopwatch') {
-            return currentSeconds + 1;
-          } else {
-            // Countdown logic
-            if (currentSeconds <= 1) {
-              // Timer Finished
-              playTone('alarm');
-              setTimerActive(false);
-              setTimerPaused(false);
-              
-              // Browser Notification
-              sendNotification("FocusFlow", "Time is up! Great work.");
-              
-              return 0;
-            }
-            return currentSeconds - 1;
+        const now = Date.now();
+        const elapsedSeconds = Math.floor((now - timerStartTime) / 1000);
+
+        if (timerMode === 'stopwatch') {
+          // For stopwatch, add elapsed time to initial seconds
+          setTimerSeconds(timerInitialSeconds + elapsedSeconds);
+        } else {
+          // For countdown, subtract elapsed time from initial seconds
+          const newSeconds = Math.max(0, timerInitialSeconds - elapsedSeconds);
+          setTimerSeconds(newSeconds);
+
+          // Timer Finished
+          if (newSeconds === 0) {
+            playTone('alarm');
+            setTimerActive(false);
+            setTimerPaused(false);
+            setTimerStartTime(null);
+            setTimerInitialSeconds(0);
+
+            // Browser Notification
+            sendNotification("FocusFlow", "Time is up! Great work.");
           }
-        });
-      }, 1000);
+        }
+      }, 100); // Update every 100ms for smoother display
     }
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [timerActive, timerPaused, timerMode, playTone]);
+  }, [timerActive, timerPaused, timerMode, timerStartTime, timerInitialSeconds, playTone]);
 
   // Timer Actions
   const timerActions: TimerActions = {
@@ -302,13 +380,28 @@ const App: React.FC = () => {
       playTone('start');
       setTimerActive(true);
       setTimerPaused(false);
+      setTimerStartTime(Date.now()); // Track when timer started
+      setTimerInitialSeconds(timerSeconds); // Save initial seconds for accurate restoration
     },
     pause: () => {
-      setTimerPaused((prev) => !prev);
+      setTimerPaused((prev) => {
+        const newPaused = !prev;
+        if (newPaused) {
+          // When pausing, clear start time
+          setTimerStartTime(null);
+        } else {
+          // When resuming, set new start time and update initial seconds to current value
+          setTimerStartTime(Date.now());
+          setTimerInitialSeconds(timerSeconds);
+        }
+        return newPaused;
+      });
     },
     stop: () => {
       setTimerActive(false);
       setTimerPaused(false);
+      setTimerStartTime(null); // Clear start time when stopping
+      setTimerInitialSeconds(0); // Clear initial seconds
       if (timerMode === 'timer') {
         // When stopping a countdown prematurely, we usually want to complete or reset
         // Here we just pause effectively, but the UI treats "Complete" as stop
@@ -317,6 +410,8 @@ const App: React.FC = () => {
     reset: () => {
       setTimerActive(false);
       setTimerPaused(false);
+      setTimerStartTime(null); // Clear start time when resetting
+      setTimerInitialSeconds(0); // Clear initial seconds
       if (timerMode === 'stopwatch') {
         setTimerSeconds(0);
       } else {
@@ -329,12 +424,15 @@ const App: React.FC = () => {
       setTimerMode(mode);
       setTimerActive(false);
       setTimerPaused(false);
+      setTimerStartTime(null); // Clear start time when changing mode
+      setTimerInitialSeconds(0); // Clear initial seconds
       if (mode === 'stopwatch') {
         setTimerSeconds(0);
         setTimerTotalSeconds(0);
       } else {
-        setTimerSeconds(25 * 60); // Default 25m
-        setTimerTotalSeconds(25 * 60);
+        const defaultMinutes = profile?.pomodoro_focus_minutes || 25;
+        setTimerSeconds(defaultMinutes * 60);
+        setTimerTotalSeconds(defaultMinutes * 60);
       }
     },
     setDuration: (seconds: number) => {
@@ -383,6 +481,34 @@ const App: React.FC = () => {
     } catch (error) {
       console.error('Error updating daily goal:', error);
       showAlert('Failed to update daily goal. Please try again.', 'Error', 'error');
+    }
+  };
+
+  const handleUpdateTimerSettings = async (type: 'focus' | 'short_break' | 'long_break', minutes: number) => {
+    if (!user) return;
+
+    const columnMap = {
+      focus: 'pomodoro_focus_minutes',
+      short_break: 'pomodoro_short_break_minutes',
+      long_break: 'pomodoro_long_break_minutes'
+    };
+
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ [columnMap[type]]: minutes, updated_at: new Date().toISOString() })
+        .eq('id', user.id);
+
+      if (error) throw error;
+
+      // Refresh profile to get updated settings
+      await refreshProfile();
+
+      const typeLabel = type === 'focus' ? 'Focus' : type === 'short_break' ? 'Short Break' : 'Long Break';
+      showAlert(`${typeLabel} duration updated to ${minutes} minutes!`, 'Success', 'success');
+    } catch (error) {
+      console.error('Error updating timer settings:', error);
+      showAlert('Failed to update timer settings. Please try again.', 'Error', 'error');
     }
   };
 
@@ -701,8 +827,8 @@ const App: React.FC = () => {
       <main className={`transition-all duration-500 ${isZenMode ? 'h-screen flex items-center justify-center p-0 bg-slate-50 dark:bg-slate-900' : 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8'}`}>
         {activeTab === 'study' ? (
           <div className={`w-full ${isZenMode ? 'max-w-2xl px-4' : 'animate-in fade-in slide-in-from-bottom-2 duration-500'}`}>
-             <Dashboard 
-               subjects={subjects} 
+             <Dashboard
+               subjects={subjects}
                sessions={sessions}
                tasks={tasks}
                timerState={timerState}
@@ -718,6 +844,11 @@ const App: React.FC = () => {
                onAddTask={handleAddTask}
                onToggleTask={handleToggleTask}
                onDeleteTask={handleDeleteTask}
+               pomodoroSettings={{
+                 focusMinutes: profile?.pomodoro_focus_minutes || 25,
+                 shortBreakMinutes: profile?.pomodoro_short_break_minutes || 5,
+                 longBreakMinutes: profile?.pomodoro_long_break_minutes || 15
+               }}
              />
           </div>
         ) : activeTab === 'analytics' ? (
@@ -791,6 +922,69 @@ const App: React.FC = () => {
                       {Notification.permission === 'granted' ? '✓ Enabled' : Notification.permission === 'denied' ? '✗ Blocked' : '? Not Set'}
                     </span>
                   )}
+                </div>
+              </div>
+
+              <hr className="border-gray-100 dark:border-slate-700" />
+
+              {/* Timer Settings Section */}
+              <div className="space-y-3">
+                <h4 className="font-medium text-gray-800 dark:text-white text-sm flex items-center gap-2">
+                  <Clock size={16} />
+                  Pomodoro Timer Settings
+                </h4>
+                <p className="text-xs text-gray-500 dark:text-slate-400">
+                  Customize your default Pomodoro timer durations.
+                </p>
+
+                <div className="space-y-3">
+                  {/* Focus Duration */}
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm text-gray-700 dark:text-slate-300">Focus Duration</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min="1"
+                        max="120"
+                        value={profile?.pomodoro_focus_minutes || 25}
+                        onChange={(e) => handleUpdateTimerSettings('focus', parseInt(e.target.value) || 25)}
+                        className="w-16 px-2 py-1 text-sm bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                      <span className="text-sm text-gray-500 dark:text-slate-400">min</span>
+                    </div>
+                  </div>
+
+                  {/* Short Break Duration */}
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm text-gray-700 dark:text-slate-300">Short Break</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min="1"
+                        max="60"
+                        value={profile?.pomodoro_short_break_minutes || 5}
+                        onChange={(e) => handleUpdateTimerSettings('short_break', parseInt(e.target.value) || 5)}
+                        className="w-16 px-2 py-1 text-sm bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                      <span className="text-sm text-gray-500 dark:text-slate-400">min</span>
+                    </div>
+                  </div>
+
+                  {/* Long Break Duration */}
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm text-gray-700 dark:text-slate-300">Long Break</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min="1"
+                        max="60"
+                        value={profile?.pomodoro_long_break_minutes || 15}
+                        onChange={(e) => handleUpdateTimerSettings('long_break', parseInt(e.target.value) || 15)}
+                        className="w-16 px-2 py-1 text-sm bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                      <span className="text-sm text-gray-500 dark:text-slate-400">min</span>
+                    </div>
+                  </div>
                 </div>
               </div>
 

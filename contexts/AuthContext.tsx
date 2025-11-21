@@ -52,7 +52,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               theme: 'dark',
               notifications_enabled: true,
               total_xp: 0,
-              level: 1
+              level: 1,
+              pomodoro_focus_minutes: 25,
+              pomodoro_short_break_minutes: 5,
+              pomodoro_long_break_minutes: 15
             }])
             .select()
             .single();

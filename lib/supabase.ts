@@ -26,6 +26,9 @@ export type Profile = {
   notifications_enabled: boolean;
   total_xp: number;
   level: number;
+  pomodoro_focus_minutes: number;
+  pomodoro_short_break_minutes: number;
+  pomodoro_long_break_minutes: number;
   created_at: string;
   updated_at: string;
 };
