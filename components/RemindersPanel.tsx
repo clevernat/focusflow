@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, Plus, Trash2, Clock } from 'lucide-react';
+import { Bell, Plus, Trash2, Clock, Edit2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Reminder } from '../lib/supabase';
 import { ConfirmModal } from './Modal';
@@ -13,6 +13,7 @@ export default function RemindersPanel({ userId }: RemindersPanelProps) {
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [editingReminder, setEditingReminder] = useState<Reminder | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
 
   // Modal management
@@ -171,6 +172,42 @@ export default function RemindersPanel({ userId }: RemindersPanelProps) {
     }
   };
 
+  const handleEditReminder = (reminder: Reminder) => {
+    setEditingReminder(reminder);
+    setNewReminder({
+      title: reminder.title,
+      time: reminder.time,
+      days_of_week: reminder.days_of_week
+    });
+    setShowAddForm(true);
+  };
+
+  const handleUpdateReminder = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingReminder) return;
+
+    try {
+      const { error } = await supabase
+        .from('reminders')
+        .update({
+          title: newReminder.title,
+          time: newReminder.time,
+          days_of_week: newReminder.days_of_week
+        })
+        .eq('id', editingReminder.id);
+
+      if (error) throw error;
+
+      setNewReminder({ title: '', time: '09:00', days_of_week: [1, 2, 3, 4, 5] });
+      setShowAddForm(false);
+      setEditingReminder(null);
+      fetchReminders();
+    } catch (error) {
+      console.error('Error updating reminder:', error);
+      alert('Failed to update reminder: ' + (error as Error).message);
+    }
+  };
+
   const handleDeleteReminder = async (id: string) => {
     const reminder = reminders.find(r => r.id === id);
     const reminderTitle = reminder?.title || 'this reminder';
@@ -214,7 +251,13 @@ export default function RemindersPanel({ userId }: RemindersPanelProps) {
           </div>
         </div>
         <button
-          onClick={() => setShowAddForm(!showAddForm)}
+          onClick={() => {
+            setShowAddForm(!showAddForm);
+            if (showAddForm) {
+              setEditingReminder(null);
+              setNewReminder({ title: '', time: '09:00', days_of_week: [1, 2, 3, 4, 5] });
+            }
+          }}
           className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors"
         >
           <Plus size={18} />
@@ -324,10 +367,12 @@ export default function RemindersPanel({ userId }: RemindersPanelProps) {
         </div>
       </div>
 
-      {/* Add Reminder Form */}
+      {/* Add/Edit Reminder Form */}
       {showAddForm && (
         <div className="mb-6 p-4 bg-gradient-to-br from-indigo-50 to-blue-50 dark:from-slate-700/50 dark:to-slate-700/30 rounded-lg border-2 border-indigo-200 dark:border-indigo-800">
-          <h3 className="text-sm font-semibold text-indigo-900 dark:text-indigo-300 mb-3">Create New Reminder</h3>
+          <h3 className="text-sm font-semibold text-indigo-900 dark:text-indigo-300 mb-3">
+            {editingReminder ? 'Edit Reminder' : 'Create New Reminder'}
+          </h3>
 
           {/* Title Input */}
           <div className="mb-3">
@@ -413,17 +458,21 @@ export default function RemindersPanel({ userId }: RemindersPanelProps) {
           {/* Buttons */}
           <div className="flex gap-2 justify-end">
             <button
-              onClick={() => setShowAddForm(false)}
+              onClick={() => {
+                setShowAddForm(false);
+                setEditingReminder(null);
+                setNewReminder({ title: '', time: '09:00', days_of_week: [1, 2, 3, 4, 5] });
+              }}
               className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-slate-600 rounded-lg transition-colors"
             >
               Cancel
             </button>
             <button
-              onClick={handleAddReminder}
+              onClick={editingReminder ? handleUpdateReminder : handleAddReminder}
               disabled={!newReminder.title || newReminder.days_of_week.length === 0}
               className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Save Reminder
+              {editingReminder ? 'Update Reminder' : 'Save Reminder'}
             </button>
           </div>
         </div>
@@ -502,12 +551,22 @@ export default function RemindersPanel({ userId }: RemindersPanelProps) {
                     </div>
                   </div>
                 </div>
-                <button
-                  onClick={() => handleDeleteReminder(reminder.id)}
-                  className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                >
-                  <Trash2 size={18} />
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleEditReminder(reminder)}
+                    className="p-2 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                    title="Edit reminder"
+                  >
+                    <Edit2 size={18} />
+                  </button>
+                  <button
+                    onClick={() => handleDeleteReminder(reminder.id)}
+                    className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                    title="Delete reminder"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                </div>
               </div>
             );
           })
