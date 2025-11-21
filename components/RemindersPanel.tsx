@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Bell, Plus, Trash2, Clock } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Reminder } from '../lib/supabase';
+import { ConfirmModal } from './Modal';
+import { useModal } from '../hooks/useModal';
 
 interface RemindersPanelProps {
   userId: string;
@@ -12,6 +14,10 @@ export default function RemindersPanel({ userId }: RemindersPanelProps) {
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Modal management
+  const { confirmState, showConfirm, closeConfirm } = useModal();
+
   const [newReminder, setNewReminder] = useState({
     title: '',
     time: '09:00',
@@ -166,19 +172,29 @@ export default function RemindersPanel({ userId }: RemindersPanelProps) {
   };
 
   const handleDeleteReminder = async (id: string) => {
-    if (!confirm('Delete this reminder?')) return;
+    const reminder = reminders.find(r => r.id === id);
+    const reminderTitle = reminder?.title || 'this reminder';
 
-    try {
-      const { error } = await supabase
-        .from('reminders')
-        .delete()
-        .eq('id', id);
+    showConfirm(
+      `Are you sure you want to delete "${reminderTitle}"?`,
+      async () => {
+        try {
+          const { error } = await supabase
+            .from('reminders')
+            .delete()
+            .eq('id', id);
 
-      if (error) throw error;
-      fetchReminders();
-    } catch (error) {
-      console.error('Error deleting reminder:', error);
-    }
+          if (error) throw error;
+          fetchReminders();
+        } catch (error) {
+          console.error('Error deleting reminder:', error);
+        }
+      },
+      'Delete Reminder',
+      'warning',
+      'Delete',
+      'Cancel'
+    );
   };
 
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -505,6 +521,18 @@ export default function RemindersPanel({ userId }: RemindersPanelProps) {
           </div>
         )}
       </div>
+
+      {/* Confirm Modal */}
+      <ConfirmModal
+        isOpen={confirmState.isOpen}
+        onClose={closeConfirm}
+        onConfirm={confirmState.onConfirm || (() => {})}
+        title={confirmState.title}
+        message={confirmState.message}
+        type={confirmState.type}
+        confirmText={confirmState.confirmText}
+        cancelText={confirmState.cancelText}
+      />
     </div>
   );
 }
