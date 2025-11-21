@@ -1,0 +1,10 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" fill="#4f46e5" rx="80"/>
+  <g transform="translate(256, 256)">
+    <circle cx="0" cy="0" r="140" fill="none" stroke="white" stroke-width="20"/>
+    <line x1="0" y1="0" x2="0" y2="-80" stroke="white" stroke-width="16" stroke-linecap="round"/>
+    <line x1="0" y1="0" x2="60" y2="0" stroke="white" stroke-width="12" stroke-linecap="round"/>
+    <circle cx="0" cy="0" r="12" fill="white"/>
+  </g>
+  <text x="256" y="420" font-family="Arial, sans-serif" font-size="48" font-weight="bold" fill="white" text-anchor="middle">FocusFlow</text>
+</svg>

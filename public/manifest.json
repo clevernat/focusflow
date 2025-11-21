@@ -1,0 +1,43 @@
+{
+  "name": "FocusFlow - Study Tracker",
+  "short_name": "FocusFlow",
+  "description": "Track your study sessions, manage subjects, and boost productivity with FocusFlow",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#4f46e5",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["education", "productivity"],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Start Timer",
+      "short_name": "Timer",
+      "description": "Start a new study session",
+      "url": "/?action=start-timer",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "View Analytics",
+      "short_name": "Analytics",
+      "description": "View your study analytics",
+      "url": "/?tab=analytics",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}
+
