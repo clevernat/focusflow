@@ -67,10 +67,14 @@ export const Timer: React.FC<TimerProps> = ({
     // If Stopwatch: seconds
     // If Timer: totalSeconds - seconds
     const durationSecs = mode === 'stopwatch' ? seconds : (totalSeconds - seconds);
-    
+
+    // Use local date in yyyy-MM-dd format to avoid timezone issues
+    const now = new Date();
+    const localDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}T${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+
     onSaveSession({
       subjectId: selectedSubjectId,
-      date: new Date().toISOString(),
+      date: localDate,
       durationMinutes: Math.max(1, Math.round(durationSecs / 60)), // Minimum 1 min
       topic: topic || (mode === 'timer' ? 'Pomodoro Session' : 'General Study'),
       notes,

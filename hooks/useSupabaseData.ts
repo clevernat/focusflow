@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase, DbSubject, DbSession, DbTask } from '../lib/supabase';
 import { Subject, Session, Task } from '../types';
 import { useAuth } from '../contexts/AuthContext';
+import { format, subDays } from 'date-fns';
 
 // Convert DB types to app types
 const dbSubjectToSubject = (dbSubject: DbSubject): Subject => ({
@@ -207,6 +208,85 @@ export const useSupabaseData = () => {
     // Immediately add to local state for instant UI update
     if (data && data.length > 0) {
       setSessions(prev => [dbSessionToSession(data[0]), ...prev]);
+
+      // Update streak after adding session
+      await updateStreak(sessionData.date);
+    }
+  };
+
+  // Update study streak
+  const updateStreak = async (sessionDate: string) => {
+    if (!user) return;
+
+    try {
+      // Get current streak data
+      const { data: streakData, error: fetchError } = await supabase
+        .from('study_streaks')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      if (fetchError && fetchError.code !== 'PGRST116') {
+        console.error('Error fetching streak:', fetchError);
+        return;
+      }
+
+      const sessionDateStr = format(new Date(sessionDate), 'yyyy-MM-dd');
+      const today = format(new Date(), 'yyyy-MM-dd');
+      const yesterday = format(subDays(new Date(), 1), 'yyyy-MM-dd');
+
+      let newCurrentStreak = 1;
+      let newLongestStreak = 1;
+
+      if (streakData) {
+        const lastStudyDate = streakData.last_study_date;
+
+        // If we already studied today, don't update streak
+        if (lastStudyDate === today || lastStudyDate === sessionDateStr) {
+          return;
+        }
+
+        // If last study was yesterday, increment streak
+        if (lastStudyDate === yesterday) {
+          newCurrentStreak = streakData.current_streak + 1;
+        } else {
+          // Streak broken, reset to 1
+          newCurrentStreak = 1;
+        }
+
+        newLongestStreak = Math.max(newCurrentStreak, streakData.longest_streak);
+
+        // Update existing streak
+        const { error: updateError } = await supabase
+          .from('study_streaks')
+          .update({
+            current_streak: newCurrentStreak,
+            longest_streak: newLongestStreak,
+            last_study_date: sessionDateStr,
+            updated_at: new Date().toISOString()
+          })
+          .eq('user_id', user.id);
+
+        if (updateError) {
+          console.error('Error updating streak:', updateError);
+        }
+      } else {
+        // Create new streak record
+        const { error: insertError } = await supabase
+          .from('study_streaks')
+          .insert({
+            user_id: user.id,
+            current_streak: 1,
+            longest_streak: 1,
+            last_study_date: sessionDateStr
+          });
+
+        if (insertError) {
+          console.error('Error creating streak:', insertError);
+        }
+      }
+    } catch (error) {
+      console.error('Error in updateStreak:', error);
     }
   };
 
@@ -322,6 +402,155 @@ export const useSupabaseData = () => {
     setTasks(prev => prev.filter(t => t.id !== id));
   };
 
+  // Recalculate streak based on all existing sessions
+  const recalculateStreak = async () => {
+    if (!user) {
+      return;
+    }
+
+    try {
+      // Fetch all sessions from database (don't rely on state)
+      const { data: allSessions, error: fetchError } = await supabase
+        .from('sessions')
+        .select('*')
+        .eq('user_id', user.id);
+
+      if (fetchError) {
+        console.error('Error fetching sessions:', fetchError);
+        return;
+      }
+
+      if (!allSessions || allSessions.length === 0) {
+        return;
+      }
+
+      // Get unique sorted dates (ascending) - use local timezone for consistency with Dashboard
+      const uniqueDates = Array.from(new Set(
+        allSessions.map(s => format(new Date(s.date), 'yyyy-MM-dd'))
+      )).sort();
+
+      if (uniqueDates.length === 0) return;
+
+      const today = format(new Date(), 'yyyy-MM-dd');
+      const yesterday = format(subDays(new Date(), 1), 'yyyy-MM-dd');
+
+      console.log('[RECALC] Unique dates:', uniqueDates);
+      console.log('[RECALC] Today:', today, 'Yesterday:', yesterday);
+
+      // Calculate current streak
+      let currentStreak = 0;
+      let longestStreak = 0;
+      let tempStreak = 0;
+
+      // Check if we have studied today or yesterday
+      const hasStudiedToday = uniqueDates.includes(today);
+      const hasStudiedYesterday = uniqueDates.includes(yesterday);
+
+      console.log('[RECALC] hasStudiedToday:', hasStudiedToday, 'hasStudiedYesterday:', hasStudiedYesterday);
+
+      // If we haven't studied today AND haven't studied yesterday, current streak is 0
+      if (!hasStudiedToday && !hasStudiedYesterday) {
+        currentStreak = 0;
+        console.log('[RECALC] No study today or yesterday, streak = 0');
+      } else {
+        // Start from today or yesterday and count backwards
+        let checkDate = hasStudiedToday ? new Date() : subDays(new Date(), 1);
+        console.log('[RECALC] Starting streak count from:', format(checkDate, 'yyyy-MM-dd'));
+
+        while (true) {
+          const checkStr = format(checkDate, 'yyyy-MM-dd');
+          console.log('[RECALC] Checking date:', checkStr, 'Found:', uniqueDates.includes(checkStr));
+          if (uniqueDates.includes(checkStr)) {
+            currentStreak++;
+            console.log('[RECALC] Streak incremented to:', currentStreak);
+            checkDate = subDays(checkDate, 1);
+          } else {
+            console.log('[RECALC] Date not found, breaking. Final current streak:', currentStreak);
+            break;
+          }
+        }
+      }
+
+      // Calculate longest streak
+      for (let i = 0; i < uniqueDates.length; i++) {
+        if (i === 0) {
+          tempStreak = 1;
+        } else {
+          const prevDate = new Date(uniqueDates[i - 1]);
+          const currDate = new Date(uniqueDates[i]);
+          const diffDays = Math.round((currDate.getTime() - prevDate.getTime()) / 86400000);
+
+          if (diffDays === 1) {
+            tempStreak++;
+          } else {
+            longestStreak = Math.max(longestStreak, tempStreak);
+            tempStreak = 1;
+          }
+        }
+      }
+      longestStreak = Math.max(longestStreak, tempStreak);
+
+      const lastStudyDate = uniqueDates[uniqueDates.length - 1];
+
+      console.log('[RECALC] Calculated streak:', { currentStreak, longestStreak, lastStudyDate });
+
+      // Update or create streak record
+      const { data: existingStreak } = await supabase
+        .from('study_streaks')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      if (existingStreak) {
+        const { data: updateData, error: updateError } = await supabase
+          .from('study_streaks')
+          .update({
+            current_streak: currentStreak,
+            longest_streak: longestStreak,
+            last_study_date: lastStudyDate,
+            updated_at: new Date().toISOString()
+          })
+          .eq('user_id', user.id)
+          .select();
+
+        if (updateError) {
+          console.error('[RECALC] Error updating streak:', updateError);
+        } else {
+          console.log('[RECALC] Successfully updated streak in DB:', updateData);
+        }
+      } else {
+        const { data: insertData, error: insertError } = await supabase
+          .from('study_streaks')
+          .insert({
+            user_id: user.id,
+            current_streak: currentStreak,
+            longest_streak: longestStreak,
+            last_study_date: lastStudyDate
+          })
+          .select();
+
+        if (insertError) {
+          console.error('[RECALC] Error creating streak:', insertError);
+        } else {
+          console.log('[RECALC] Successfully created streak in DB:', insertData);
+        }
+      }
+
+      // Verify the update by querying the database again
+      const { data: verifyData, error: verifyError } = await supabase
+        .from('study_streaks')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      if (!verifyError) {
+        console.log('[RECALC] Verified streak in DB after update:', verifyData);
+      }
+    } catch (error) {
+      console.error('Error in recalculateStreak:', error);
+    }
+  };
+
   return {
     subjects,
     sessions,
@@ -337,6 +566,7 @@ export const useSupabaseData = () => {
     toggleTask,
     deleteTask,
     refreshData: fetchData,
+    recalculateStreak,
   };
 };
 

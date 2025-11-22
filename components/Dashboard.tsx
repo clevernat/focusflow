@@ -2,6 +2,7 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { Subject, Session, ColorOption, TimerState, TimerActions, Task } from '../types';
 import { Timer } from './Timer';
 import { Heatmap } from './Heatmap';
+import { MiniCalendar } from './MiniCalendar';
 import { COLORS } from '../constants';
 import { Plus, Clock, BarChart3, Trophy, Star, Trash2, Pencil, X, CheckCircle2, Circle, ListTodo, Flame, ChevronRight } from 'lucide-react';
 import { format, startOfWeek, endOfWeek, isWithinInterval, isSameDay, subDays, parseISO } from 'date-fns';
@@ -50,10 +51,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onDeleteTask,
   pomodoroSettings
 }) => {
-  // Debug: Log dailyGoal prop changes
-  useEffect(() => {
-    console.log('📊 Dashboard received dailyGoal prop:', dailyGoal, 'minutes (', (dailyGoal / 60).toFixed(1), 'hours)');
-  }, [dailyGoal]);
 
   // --- Modal States ---
   const [isSubjectModalOpen, setIsSubjectModalOpen] = useState(false);
@@ -111,31 +108,34 @@ export const Dashboard: React.FC<DashboardProps> = ({
   // --- Streak Calculation ---
   const streakCount = useMemo(() => {
     if (sessions.length === 0) return 0;
-    
+
     // Get unique sorted dates (descending)
     const uniqueDates = Array.from(new Set(
       sessions.map(s => format(new Date(s.date), 'yyyy-MM-dd'))
     )).sort().reverse();
-    
+
     const todayStr = format(new Date(), 'yyyy-MM-dd');
     const yesterdayStr = format(subDays(new Date(), 1), 'yyyy-MM-dd');
-    
+
+    console.log('[DASHBOARD] Unique dates:', uniqueDates);
+    console.log('[DASHBOARD] Today:', todayStr, 'Yesterday:', yesterdayStr);
+
     let currentStreak = 0;
-    
+
     // Check if we have studied today
     const hasStudiedToday = uniqueDates.includes(todayStr);
-    
+
     // If we haven't studied today AND haven't studied yesterday, streak is broken/0
     if (!hasStudiedToday && !uniqueDates.includes(yesterdayStr)) {
       return 0;
     }
-    
+
     // Start counting backwards
     // If today is present, start from today (index 0)
     // If today is missing but yesterday is present, start from yesterday (index 0 in filtered list effectively, but logic below handles direct dates)
-    
+
     let checkDate = hasStudiedToday ? new Date() : subDays(new Date(), 1);
-    
+
     while (true) {
       const checkStr = format(checkDate, 'yyyy-MM-dd');
       if (uniqueDates.includes(checkStr)) {
@@ -145,7 +145,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
         break;
       }
     }
-    
+
+    console.log('[DASHBOARD] Final streak:', currentStreak);
+
     return currentStreak;
   }, [sessions]);
 
@@ -254,7 +256,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
   return (
     <div className="space-y-6">
-      
+
       {/* Header Section */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-2">
         <div>
@@ -265,17 +267,20 @@ export const Dashboard: React.FC<DashboardProps> = ({
              Ready to stay focused today?
            </p>
         </div>
-        {streakCount > 0 && (
-          <div className="flex items-center gap-2 px-4 py-2 bg-orange-50 dark:bg-orange-900/20 border border-orange-100 dark:border-orange-900/50 rounded-full shadow-sm animate-in fade-in slide-in-from-right-5 duration-700">
-             <div className="p-1.5 bg-orange-100 dark:bg-orange-900/50 rounded-full text-orange-500">
-               <Flame size={18} fill="currentColor" className="animate-pulse" />
-             </div>
-             <div>
-               <p className="text-xs text-gray-500 dark:text-orange-200 font-semibold uppercase tracking-wider leading-none">Current Streak</p>
-               <p className="text-lg font-bold text-orange-600 dark:text-orange-400 leading-none">{streakCount} <span className="text-sm font-normal">{streakCount === 1 ? 'Day' : 'Days'}</span></p>
-             </div>
-          </div>
-        )}
+        {(() => {
+          console.log('[DASHBOARD BADGE] Displaying streak:', streakCount);
+          return streakCount > 0 && (
+            <div className="flex items-center gap-2 px-4 py-2 bg-orange-50 dark:bg-orange-900/20 border border-orange-100 dark:border-orange-900/50 rounded-full shadow-sm animate-in fade-in slide-in-from-right-5 duration-700">
+               <div className="p-1.5 bg-orange-100 dark:bg-orange-900/50 rounded-full text-orange-500">
+                 <Flame size={18} fill="currentColor" className="animate-pulse" />
+               </div>
+               <div>
+                 <p className="text-xs text-gray-500 dark:text-orange-200 font-semibold uppercase tracking-wider leading-none">Current Streak</p>
+                 <p className="text-lg font-bold text-orange-600 dark:text-orange-400 leading-none">{streakCount} <span className="text-sm font-normal">{streakCount === 1 ? 'Day' : 'Days'}</span></p>
+               </div>
+            </div>
+          );
+        })()}
       </div>
 
       {/* Key Metrics Cards */}
@@ -564,6 +569,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
               )}
             </div>
           </div>
+
+          {/* Mini Calendar Widget */}
+          <MiniCalendar sessions={sessions} subjects={subjects} />
 
           {/* Recent History Short List */}
           <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-100 dark:border-slate-700 p-6 transition-colors">

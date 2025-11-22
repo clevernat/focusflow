@@ -16,9 +16,10 @@ interface AnalyticsProps {
   subjects: Subject[];
   isDarkMode: boolean;
   streak?: StudyStreak | null;
+  onRecalculateStreak?: () => Promise<void>;
 }
 
-export const Analytics: React.FC<AnalyticsProps> = ({ sessions, subjects, isDarkMode, streak }) => {
+export const Analytics: React.FC<AnalyticsProps> = ({ sessions, subjects, isDarkMode, streak, onRecalculateStreak }) => {
   // --- 1. Trend Data (Last 30 Days) ---
   const trendData = useMemo(() => {
     const data = [];
@@ -123,7 +124,7 @@ export const Analytics: React.FC<AnalyticsProps> = ({ sessions, subjects, isDark
 
       {/* Streak Display */}
       {streak && (
-        <StreakDisplay streak={streak} />
+        <StreakDisplay streak={streak} onRecalculate={onRecalculateStreak} />
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -219,7 +220,7 @@ export const Analytics: React.FC<AnalyticsProps> = ({ sessions, subjects, isDark
                const subSessions = sessions.filter(s => s.subjectId === sub.id);
                const count = subSessions.length;
                const totalHours = subSessions.reduce((acc, s) => acc + s.durationMinutes, 0) / 60;
-               const avgR = count > 0 ? (subSessions.reduce((acc,s) => acc + s.rating, 0) / count).toFixed(1) : 'N/A';
+               const avgRating = count > 0 ? subSessions.reduce((acc,s) => acc + s.rating, 0) / count : 0;
                const color = COLORS.find(c => c.id === sub.color);
 
                return (
@@ -234,8 +235,12 @@ export const Analytics: React.FC<AnalyticsProps> = ({ sessions, subjects, isDark
                      </div>
                    </div>
                    <div className="text-right">
-                      <div className="font-medium text-gray-800 dark:text-gray-200">{typeof avgR === 'string' ? avgR : avgR + ' ⭐'}</div>
-                      <div className="text-xs text-gray-500 dark:text-slate-400">{totalHours.toFixed(1)} {totalHours === 1 ? 'hour' : 'hours'}</div>
+                      <div className="font-medium text-gray-800 dark:text-gray-200">
+                        {count > 0 ? `${avgRating.toFixed(1)} ⭐` : 'N/A'}
+                      </div>
+                      <div className="text-xs text-gray-500 dark:text-slate-400">
+                        {totalHours.toFixed(1)} {Math.abs(totalHours - 1) < 0.01 ? 'hour' : 'hours'}
+                      </div>
                    </div>
                  </div>
                );

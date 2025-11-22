@@ -30,7 +30,7 @@ export type ColorOption = {
   hex: string;
 };
 
-export type Tab = 'study' | 'analytics' | 'achievements' | 'reminders';
+export type Tab = 'study' | 'analytics' | 'calendar' | 'achievements' | 'reminders';
 
 export type TimerMode = 'stopwatch' | 'timer';
 

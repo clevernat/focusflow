@@ -1,12 +1,30 @@
-import React from 'react';
-import { Flame, Trophy, Target } from 'lucide-react';
+import React, { useState } from 'react';
+import { Flame, Trophy, Target, RefreshCw } from 'lucide-react';
 import type { StudyStreak } from '../lib/supabase';
 
 interface StreakDisplayProps {
   streak: StudyStreak | null;
+  onRecalculate?: () => Promise<void>;
 }
 
-export default function StreakDisplay({ streak }: StreakDisplayProps) {
+export default function StreakDisplay({ streak, onRecalculate }: StreakDisplayProps) {
+  const [isRecalculating, setIsRecalculating] = useState(false);
+
+  console.log('[STREAK DISPLAY] Received streak from DB:', streak);
+
+  const handleRecalculate = async () => {
+    if (!onRecalculate) {
+      return;
+    }
+    setIsRecalculating(true);
+    try {
+      await onRecalculate();
+    } catch (error) {
+      console.error('Error recalculating streak:', error);
+    } finally {
+      setIsRecalculating(false);
+    }
+  };
   if (!streak) {
     return (
       <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
@@ -20,16 +38,31 @@ export default function StreakDisplay({ streak }: StreakDisplayProps) {
 
   const { current_streak, longest_streak } = streak;
 
+  console.log('[STREAK DISPLAY] Rendering with current_streak:', current_streak, 'longest_streak:', longest_streak);
+
   return (
     <div className="bg-gradient-to-br from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20 rounded-xl shadow-sm border-2 border-orange-200 dark:border-orange-800 p-6">
-      <div className="flex items-center gap-3 mb-6">
-        <div className="bg-gradient-to-br from-orange-500 to-red-500 p-3 rounded-lg">
-          <Flame className="text-white w-6 h-6" />
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <div className="bg-gradient-to-br from-orange-500 to-red-500 p-3 rounded-lg">
+            <Flame className="text-white w-6 h-6" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-gray-800 dark:text-white">Study Streak</h2>
+            <p className="text-sm text-gray-600 dark:text-slate-400">Keep the momentum going!</p>
+          </div>
         </div>
-        <div>
-          <h2 className="text-xl font-bold text-gray-800 dark:text-white">Study Streak</h2>
-          <p className="text-sm text-gray-600 dark:text-slate-400">Keep the momentum going!</p>
-        </div>
+        {onRecalculate && (
+          <button
+            onClick={handleRecalculate}
+            disabled={isRecalculating}
+            className="flex items-center gap-2 px-3 py-2 bg-orange-500 hover:bg-orange-600 disabled:bg-orange-300 text-white rounded-lg text-sm font-medium transition-colors"
+            title="Recalculate streak from all sessions"
+          >
+            <RefreshCw size={16} className={isRecalculating ? 'animate-spin' : ''} />
+            <span className="hidden sm:inline">{isRecalculating ? 'Updating...' : 'Recalculate'}</span>
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-4">

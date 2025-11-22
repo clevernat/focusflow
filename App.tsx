@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { LayoutDashboard, PieChart, Layers, Clock, Sun, Moon, Settings, Download, Upload, X, FileJson, AlertTriangle, Bell, LogOut, User as UserIcon, Trophy, BellRing } from 'lucide-react';
+import { LayoutDashboard, PieChart, Layers, Clock, Sun, Moon, Settings, Download, Upload, X, FileJson, AlertTriangle, Bell, LogOut, User as UserIcon, Trophy, BellRing, Calendar as CalendarIcon } from 'lucide-react';
 import { Dashboard } from './components/Dashboard';
 import { Analytics } from './components/Analytics';
+import { Calendar } from './components/Calendar';
 import AchievementsPanel from './components/AchievementsPanel';
 import RemindersPanel from './components/RemindersPanel';
 import { AlertModal, ConfirmModal } from './components/Modal';
@@ -32,6 +33,7 @@ const App: React.FC = () => {
     addTask,
     toggleTask,
     deleteTask,
+    recalculateStreak,
   } = useSupabaseData();
 
   const {
@@ -39,7 +41,8 @@ const App: React.FC = () => {
     userAchievements,
     streak,
     loading: gamificationLoading,
-    checkAndUnlockAchievements
+    checkAndUnlockAchievements,
+    refreshData: refreshGamificationData
   } = useGamification(user?.id);
 
   // Background reminder checker - runs on all pages
@@ -118,7 +121,23 @@ const App: React.FC = () => {
   });
   const [timerMode, setTimerMode] = useState<TimerMode>(() => {
     const saved = localStorage.getItem('focusflow_timer_mode');
-    return (saved as TimerMode) || 'stopwatch';
+    // Validate that saved value is a valid TimerMode
+    if (saved === 'stopwatch' || saved === 'timer') {
+      return saved;
+    }
+    return 'stopwatch';
+  });
+
+  // Separate state for each mode to preserve timer values when switching
+  const [stopwatchState, setStopwatchState] = useState(() => {
+    const saved = localStorage.getItem('focusflow_stopwatch_state');
+    return saved ? JSON.parse(saved) : { seconds: 0, totalSeconds: 0, active: false, paused: false };
+  });
+
+  const [pomodoroState, setPomodoroState] = useState(() => {
+    const saved = localStorage.getItem('focusflow_pomodoro_state');
+    const defaultMinutes = 25; // Will be updated from profile later
+    return saved ? JSON.parse(saved) : { seconds: defaultMinutes * 60, totalSeconds: defaultMinutes * 60, active: false, paused: false };
   });
   const [isZenMode, setIsZenMode] = useState(() => {
     const saved = localStorage.getItem('focusflow_zen_mode');
@@ -157,6 +176,14 @@ const App: React.FC = () => {
   useEffect(() => {
     localStorage.setItem('focusflow_timer_mode', timerMode);
   }, [timerMode]);
+
+  // Force restore timer mode on mount (handles normal refresh)
+  useEffect(() => {
+    const saved = localStorage.getItem('focusflow_timer_mode');
+    if (saved && (saved === 'stopwatch' || saved === 'timer') && saved !== timerMode) {
+      setTimerMode(saved as TimerMode);
+    }
+  }, []); // Run only once on mount
 
   useEffect(() => {
     localStorage.setItem('focusflow_zen_mode', JSON.stringify(isZenMode));
@@ -421,18 +448,52 @@ const App: React.FC = () => {
     },
     setSubjectId: setTimerSubjectId,
     setMode: (mode: TimerMode) => {
-      setTimerMode(mode);
-      setTimerActive(false);
-      setTimerPaused(false);
-      setTimerStartTime(null); // Clear start time when changing mode
-      setTimerInitialSeconds(0); // Clear initial seconds
-      if (mode === 'stopwatch') {
-        setTimerSeconds(0);
-        setTimerTotalSeconds(0);
+
+      // Save current mode's state before switching
+      if (timerMode === 'stopwatch') {
+        const newState = { seconds: timerSeconds, totalSeconds: timerTotalSeconds, active: timerActive, paused: timerPaused };
+        setStopwatchState(newState);
+        localStorage.setItem('focusflow_stopwatch_state', JSON.stringify(newState));
       } else {
-        const defaultMinutes = profile?.pomodoro_focus_minutes || 25;
-        setTimerSeconds(defaultMinutes * 60);
-        setTimerTotalSeconds(defaultMinutes * 60);
+        const newState = { seconds: timerSeconds, totalSeconds: timerTotalSeconds, active: timerActive, paused: timerPaused };
+        setPomodoroState(newState);
+        localStorage.setItem('focusflow_pomodoro_state', JSON.stringify(newState));
+      }
+
+      // Switch to new mode
+      setTimerMode(mode);
+
+      // Restore the new mode's state
+      if (mode === 'stopwatch') {
+        setTimerSeconds(stopwatchState.seconds);
+        setTimerTotalSeconds(stopwatchState.totalSeconds);
+        setTimerActive(stopwatchState.active);
+        setTimerPaused(stopwatchState.paused);
+
+        // If timer was running, reset start time for accurate counting
+        if (stopwatchState.active && !stopwatchState.paused) {
+          const now = Date.now();
+          setTimerStartTime(now);
+          setTimerInitialSeconds(stopwatchState.seconds);
+        } else {
+          setTimerStartTime(null);
+          setTimerInitialSeconds(0);
+        }
+      } else {
+        setTimerSeconds(pomodoroState.seconds);
+        setTimerTotalSeconds(pomodoroState.totalSeconds);
+        setTimerActive(pomodoroState.active);
+        setTimerPaused(pomodoroState.paused);
+
+        // If timer was running, reset start time for accurate counting
+        if (pomodoroState.active && !pomodoroState.paused) {
+          const now = Date.now();
+          setTimerStartTime(now);
+          setTimerInitialSeconds(pomodoroState.seconds);
+        } else {
+          setTimerStartTime(null);
+          setTimerInitialSeconds(0);
+        }
       }
     },
     setDuration: (seconds: number) => {
@@ -510,6 +571,12 @@ const App: React.FC = () => {
       console.error('Error updating timer settings:', error);
       showAlert('Failed to update timer settings. Please try again.', 'Error', 'error');
     }
+  };
+
+  const handleRecalculateStreak = async () => {
+    await recalculateStreak();
+    // Refresh gamification data to get the updated streak
+    await refreshGamificationData();
   };
 
   const handleSaveSession = async (sessionData: Omit<Session, 'id'>) => {
@@ -755,6 +822,17 @@ const App: React.FC = () => {
                   <span className="hidden sm:inline">Analytics</span>
                 </button>
                 <button
+                  onClick={() => setActiveTab('calendar')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                    activeTab === 'calendar'
+                      ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                  }`}
+                >
+                  <CalendarIcon size={18} />
+                  <span className="hidden sm:inline">Calendar</span>
+                </button>
+                <button
                   onClick={() => setActiveTab('achievements')}
                   className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                     activeTab === 'achievements'
@@ -853,7 +931,11 @@ const App: React.FC = () => {
           </div>
         ) : activeTab === 'analytics' ? (
           <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
-            <Analytics sessions={sessions} subjects={subjects} isDarkMode={theme === 'dark'} streak={streak} />
+            <Analytics sessions={sessions} subjects={subjects} isDarkMode={theme === 'dark'} streak={streak} onRecalculateStreak={handleRecalculateStreak} />
+          </div>
+        ) : activeTab === 'calendar' ? (
+          <div className="animate-in fade-in slide-in-from-bottom-2 duration-500 h-[calc(100vh-12rem)]">
+            <Calendar sessions={sessions} subjects={subjects} onAddSession={handleSaveSession} />
           </div>
         ) : activeTab === 'achievements' ? (
           <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">

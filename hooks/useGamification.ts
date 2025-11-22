@@ -80,6 +80,8 @@ export function useGamification(userId: string | undefined) {
 
       if (streakError && streakError.code !== 'PGRST116') throw streakError;
 
+      console.log('[GAMIFICATION] Fetched streak from DB:', streakData);
+
       setData({
         achievements: achievementsData || [],
         userAchievements: userAchievementsData || [],
