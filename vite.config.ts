@@ -8,6 +8,11 @@ export default defineConfig(({ mode }) => {
       server: {
         port: 3000,
         host: '0.0.0.0',
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+        },
       },
       plugins: [react()],
       define: {
@@ -17,6 +22,16 @@ export default defineConfig(({ mode }) => {
       resolve: {
         alias: {
           '@': path.resolve(__dirname, '.'),
+        }
+      },
+      build: {
+        // Generate unique hashes for each build to bust cache
+        rollupOptions: {
+          output: {
+            entryFileNames: `assets/[name].[hash].js`,
+            chunkFileNames: `assets/[name].[hash].js`,
+            assetFileNames: `assets/[name].[hash].[ext]`
+          }
         }
       }
     };

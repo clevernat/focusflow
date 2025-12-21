@@ -1,4 +1,4 @@
-const CACHE_NAME = 'focusflow-v1';
+const CACHE_NAME = 'focusflow-v2';
 const urlsToCache = [
   '/',
   '/index.html',
@@ -34,34 +34,30 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetch event - serve from cache, fallback to network
+// Fetch event - NETWORK FIRST strategy for fresh content
 self.addEventListener('fetch', (event) => {
   event.respondWith(
-    caches.match(event.request)
+    fetch(event.request)
       .then((response) => {
-        // Cache hit - return response
-        if (response) {
+        // Check if valid response
+        if (!response || response.status !== 200 || response.type !== 'basic') {
           return response;
         }
 
-        return fetch(event.request).then(
-          (response) => {
-            // Check if valid response
-            if (!response || response.status !== 200 || response.type !== 'basic') {
-              return response;
-            }
+        // Clone the response for caching
+        const responseToCache = response.clone();
 
-            // Clone the response
-            const responseToCache = response.clone();
+        // Update cache with fresh content
+        caches.open(CACHE_NAME)
+          .then((cache) => {
+            cache.put(event.request, responseToCache);
+          });
 
-            caches.open(CACHE_NAME)
-              .then((cache) => {
-                cache.put(event.request, responseToCache);
-              });
-
-            return response;
-          }
-        );
+        return response;
+      })
+      .catch(() => {
+        // Network failed, try cache as fallback
+        return caches.match(event.request);
       })
   );
 });
